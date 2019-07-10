@@ -25,5 +25,5 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jstr
 
 
     env->ReleaseStringUTFChars(url_, url);
-    return nullptr;
+    return 0;
 }
