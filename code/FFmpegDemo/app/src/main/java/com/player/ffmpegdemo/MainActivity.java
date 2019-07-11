@@ -1,33 +1,37 @@
 package com.player.ffmpegdemo;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.widget.TextView;
+import android.os.Environment;
+import android.support.v7.app.AppCompatActivity;
+import android.view.SurfaceView;
+import android.view.View;
+import android.view.ViewGroup;
+
+import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        findViewById(R.id.play_demo)
+                .setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        play();
+                    }
+                });
+    }
 
-    // Example of a call to a native method
-    /*TextView tv = findViewById(R.id.sample_text);
-    tv.setText(stringFromJNI());*/
+    private void play() {
+        final String path = new File(Environment.getExternalStorageDirectory(),"demo.mp4").getAbsolutePath();
+
+        FFPlayer ffPlayer = new FFPlayer(MainActivity.this);
+        ffPlayer.init((SurfaceView) findViewById(R.id.surface));
+        ffPlayer.play(path);
     }
 
 
-
-    // Used to load the 'native-lib' library on application startup.
-    static {
-        System.loadLibrary("avutil-56");
-        System.loadLibrary("avcodec-58");
-        System.loadLibrary("avformat-58");
-        System.loadLibrary("avdevice-58");
-        System.loadLibrary("swresample-3");
-        System.loadLibrary("swscale-5");
-        System.loadLibrary("postproc-55");
-        System.loadLibrary("avfilter-7");
-        System.loadLibrary("native-lib");
-    }
 }

@@ -1,8 +1,12 @@
 package com.player.ffmpegdemo;
 
+import android.view.SurfaceView;
+import android.view.View;
+
 public interface SimplePlayerIface {
 
-    void init();
+
+    View init(SurfaceView surfaceView);
 
     boolean play(String url);
 

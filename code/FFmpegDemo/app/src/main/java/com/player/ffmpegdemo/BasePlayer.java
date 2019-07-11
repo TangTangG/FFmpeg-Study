@@ -1,5 +1,8 @@
 package com.player.ffmpegdemo;
 
+import android.view.SurfaceView;
+import android.view.View;
+
 public abstract class BasePlayer implements SimplePlayerIface {
 
     @Override
@@ -11,4 +14,5 @@ public abstract class BasePlayer implements SimplePlayerIface {
     public boolean destroy() {
         return false;
     }
+
 }

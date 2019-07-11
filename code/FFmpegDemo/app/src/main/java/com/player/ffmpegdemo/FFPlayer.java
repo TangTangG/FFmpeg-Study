@@ -1,30 +1,37 @@
 package com.player.ffmpegdemo;
 
 import android.content.Context;
+import android.graphics.PixelFormat;
+import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.view.View;
 
 /**
  * 使用FFmpeg完成视频播放
  */
 public class FFPlayer extends BasePlayer {
 
+    private final Context context;
     private SurfaceView surfaceView;
     private SurfaceHolder holder;
 
     public FFPlayer(Context context) {
-        surfaceView = new SurfaceView(context);
-        holder = surfaceView.getHolder();
+        this.context = context;
     }
 
     @Override
-    public void init() {
-
+    public View init(SurfaceView surfaceView) {
+        this.surfaceView = surfaceView;
+        holder = surfaceView.getHolder();
+        holder.setFormat(PixelFormat.RGBA_8888);
+        return surfaceView;
     }
 
     @Override
     public boolean play(String url) {
-        return false;
+        int result = doFFplay(holder.getSurface(), url);
+        return result == 0;
     }
 
     @Override
@@ -36,7 +43,7 @@ public class FFPlayer extends BasePlayer {
      * A native method that is implemented by the 'native-lib' native library,
      * which is packaged with this application.
      */
-//    public native String doFFplay(String url,SurfaceView surface);
+    public native int doFFplay(Surface surface, String url);
 
     // Used to load the 'native-lib' library on application startup.
     static {

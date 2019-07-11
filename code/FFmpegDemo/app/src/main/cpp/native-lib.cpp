@@ -1,8 +1,6 @@
 #include <jni.h>
 #include <string>
 #include <android/log.h>
-#include <SLES/OpenSLES.h>
-#include <SLES/OpenSLES.h>
 
 #define LOGE(FORMAT, ...) __android_log_print(ANDROID_LOG_ERROR, "player", FORMAT, ##__VA_ARGS__);
 #define LOGD(FORMAT, ...) __android_log_print(ANDROID_LOG_DEBUG, "player", FORMAT, ##__VA_ARGS__);
@@ -17,12 +15,13 @@ extern "C" {
 }
 
 extern "C"
-JNIEXPORT void JNICALL
+JNIEXPORT jint JNICALL
 Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobject surface,
                                              jstring url_) {
     int result;
 
     const char *url = env->GetStringUTFChars(url_, 0);
+    char buf[] = "";
 
     //we can omit this function call in ffmpeg 4.0 and later.
     av_register_all();
@@ -32,15 +31,18 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     //读取视频文件
     result = avformat_open_input(&formatContext, url, NULL, NULL);
     if (result < 0) {
+        av_strerror(result, buf, 1024);
+        // LOGE("%s" ,inputPath)
+        LOGE("Couldn't open file %s: %d(%s)", url, result, buf);
         LOGE("FFMPEG Player Error: Can not open video file")
-        return;
+        return -1;
     }
 
     //查看文件视频流信息
     result = avformat_find_stream_info(formatContext, NULL);
     if (result < 0) {
         LOGE("FFMPEG Player Error: Can not find video file stream info")
-        return;
+        return -1;
     }
     //查找视频流对应解码器
     int video_stream_index = -1;
@@ -54,7 +56,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     if (video_stream_index == -1) {
         //可能传入的是一个单纯的音频流
         LOGD("FFMPEG Player : Can not find video codec")
-        return;
+        return -1;
     }
     //初始化视频流编码器上下文
     AVCodecContext *avCodecContext = formatContext->streams[video_stream_index]->codec;;
@@ -63,7 +65,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     result = avcodec_open2(avCodecContext, avCodec, NULL);
     if (result < 0) {
         LOGE("FFMPEG Player Error: Can not open video file");
-        return;
+        return -1;
     }
     //对于视频（Video）来说，AVPacket通常包含一个压缩的Frame；而音频（Audio）则有可能包含多个压缩的Frame
     //关于这些数据的一些附加的信息，如显示时间戳（pts），解码时间戳（dts）,数据时长（duration）
@@ -90,6 +92,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     ANativeWindow *pNativeWindow = ANativeWindow_fromSurface(env, surface);
     if (pNativeWindow == 0) {
         LOGE("FFMPEG Player Error: ANativeWindow get failed");
+        return -1;
     }
 
     ANativeWindow_Buffer nativeWindow_buffer;
@@ -104,31 +107,34 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
         if (avPacket->stream_index == video_stream_index) {
             LOGD("FFMPEG Player: DECODE -------- tag ");
             //解码
-            avcodec_send_packet(avCodecContext, avPacket);
-            frameCount = avcodec_receive_frame(avCodecContext, avFrame);
+//            avcodec_send_packet(avCodecContext, avPacket);
+//            frameCount = avcodec_receive_frame(avCodecContext, avFrame);
+            avcodec_decode_video2(avCodecContext, avFrame, &frameCount, avPacket);
             LOGD("FFMPEG Player: DECODE ..... %d", frameCount)
             if (frameCount) {
-                LOGD("FFMPEG Player: DECODE ..... transfrom")
+                LOGD("FFMPEG Player: DECODE ..... transfrom %d %d", avCodecContext->width,
+                     avCodecContext->height)
                 ANativeWindow_setBuffersGeometry(pNativeWindow, avCodecContext->width,
                                                  avCodecContext->height, WINDOW_FORMAT_RGBA_8888);
                 ANativeWindow_lock(pNativeWindow, &nativeWindow_buffer, NULL);
                 //对frame所有像素点进行缩放
-                sws_scale(swsContext, (const uint8_t *const *)avFrame->data, avFrame->linesize, 0, avFrame->height,
-                          rgb_frame->data, rgb_frame->linesize);
+                sws_scale(swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
+                          avFrame->height, rgb_frame->data, rgb_frame->linesize);
                 //获取缩放之后的像素数据
                 uint8_t *dst = static_cast<uint8_t *>(nativeWindow_buffer.bits);
                 //一行包含多少RGBA ---> 多少个像素
-                int destStride = nativeWindow_buffer.stride *4;
+                int destStride = nativeWindow_buffer.stride * 4;
                 //像素数据的首地址
                 uint8_t *src = rgb_frame->data[0];
                 //实际一行包含的像素点内存量
                 int srcStride = rgb_frame->linesize[0];
                 for (int i = 0; i < avCodecContext->height; ++i) {
-                    memcpy(dst + i * destStride,src + i * srcStride, static_cast<size_t>(srcStride));
+                    memcpy(dst + i * destStride, src + i * srcStride,
+                           static_cast<size_t>(srcStride));
                 }
                 ANativeWindow_unlockAndPost(pNativeWindow);
                 //这里应该引入生产消费模型，暂时阻塞
-                usleep(1000*16);
+                usleep(1000 * 16);
 
             }
         }
@@ -142,5 +148,5 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     avformat_free_context(formatContext);
 
     env->ReleaseStringUTFChars(url_, url);
-    return;
+    return 0;
 }
