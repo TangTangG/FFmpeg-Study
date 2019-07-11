@@ -36,5 +36,18 @@ public class FFPlayer extends BasePlayer {
      * A native method that is implemented by the 'native-lib' native library,
      * which is packaged with this application.
      */
-    public native String doFFplay(String url);
+//    public native String doFFplay(String url,SurfaceView surface);
+
+    // Used to load the 'native-lib' library on application startup.
+    static {
+        System.loadLibrary("avutil-56");
+        System.loadLibrary("avcodec-58");
+        System.loadLibrary("avformat-58");
+        System.loadLibrary("avdevice-58");
+        System.loadLibrary("swresample-3");
+        System.loadLibrary("swscale-5");
+        System.loadLibrary("postproc-55");
+        System.loadLibrary("avfilter-7");
+        System.loadLibrary("native-lib");
+    }
 }
