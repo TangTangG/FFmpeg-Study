@@ -20,6 +20,14 @@ add_library( # Sets the name of the library.
 
         # Provides a relative path to your source file(s).
         src/main/cpp/native-lib.cpp)
+#[[add_library( # Sets the name of the library.
+        FFMpeg_log
+
+        # Sets the library as a shared library.
+        SHARED
+
+        # Provides a relative path to your source file(s).
+        src/main/cpp/FFMpeg_log.h)]]
 
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
@@ -96,6 +104,7 @@ set_target_properties(avformat-58
 
 target_link_libraries( # Specifies the target library.
         native-lib
+#        FFMpeg_log
         avformat-58
         avdevice-58
         swscale-5

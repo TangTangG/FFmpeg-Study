@@ -2,6 +2,8 @@ package com.player.ffmpegdemo;
 
 import android.content.Context;
 import android.graphics.PixelFormat;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -16,22 +18,59 @@ public class FFPlayer extends BasePlayer {
     private SurfaceView surfaceView;
     private SurfaceHolder holder;
 
+    private String playUrl;
+
     public FFPlayer(Context context) {
         this.context = context;
     }
 
     @Override
     public View init(SurfaceView surfaceView) {
-        this.surfaceView = surfaceView;
-        holder = surfaceView.getHolder();
-        holder.setFormat(PixelFormat.RGBA_8888);
-        return surfaceView;
+        this.surfaceView = new SurfaceView(context);
+        this.surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(final SurfaceHolder holder) {
+                FFPlayer.this.holder = holder;
+                holder.setFormat(PixelFormat.RGBA_8888);
+                final Surface surface = holder.getSurface();
+                if (surface == null || !surface.isValid()) {
+                    Log.d("tang ", "surfaceCreated: ");
+                    return;
+                }
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (!TextUtils.isEmpty(playUrl)) {
+                            doFFplay(FFPlayer.this.holder.getSurface(), playUrl);
+                        }
+                    }
+                });
+
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+
+            }
+        });
+        return this.surfaceView;
     }
 
     @Override
     public boolean play(String url) {
-        int result = doFFplay(holder.getSurface(), url);
-        return result == 0;
+       /* if (holder == null){
+
+        } else {
+
+        }
+        int result = doFFplay(holder.getSurface(), url);*/
+       this.playUrl = url;
+        return false;
     }
 
     @Override

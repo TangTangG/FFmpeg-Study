@@ -20,6 +20,7 @@ public class MainActivity extends AppCompatActivity {
                 .setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
+
                         play();
                     }
                 });
@@ -29,7 +30,10 @@ public class MainActivity extends AppCompatActivity {
         final String path = new File(Environment.getExternalStorageDirectory(),"demo.mp4").getAbsolutePath();
 
         FFPlayer ffPlayer = new FFPlayer(MainActivity.this);
-        ffPlayer.init((SurfaceView) findViewById(R.id.surface));
+
+        View view = ffPlayer.init(null);
+        ViewGroup container = findViewById(R.id.surface_container);
+        container.addView(view);
         ffPlayer.play(path);
     }
 
