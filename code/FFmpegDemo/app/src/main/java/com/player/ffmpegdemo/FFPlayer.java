@@ -37,14 +37,17 @@ public class FFPlayer extends BasePlayer {
                     Log.d("tang ", "surfaceCreated: ");
                     return;
                 }
-                new Thread(new Runnable() {
+                /*new Thread(new Runnable() {
                     @Override
                     public void run() {
                         if (!TextUtils.isEmpty(playUrl)) {
                             doFFplay(FFPlayer.this.holder.getSurface(), playUrl);
                         }
                     }
-                });
+                });*/
+                if (!TextUtils.isEmpty(playUrl)) {
+                    doFFplay(FFPlayer.this.holder.getSurface(), playUrl);
+                }
 
             }
 

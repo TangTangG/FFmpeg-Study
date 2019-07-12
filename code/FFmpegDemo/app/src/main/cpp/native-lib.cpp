@@ -112,8 +112,8 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     LOGD("FFMPEG Player: DECODE -------- BEGIN");
 
     while (av_read_frame(formatContext, avPacket) >= 0) {
-        LOGD("FFMPEG Player: DECODE -------- stream_index %d", avPacket->stream_index);
-        LOGD("FFMPEG Player: DECODE -------- codec_index %d", video_stream_index);
+//        LOGD("FFMPEG Player: DECODE -------- stream_index %d", avPacket->stream_index);
+//        LOGD("FFMPEG Player: DECODE -------- codec_index %d", video_stream_index);
         if (avPacket->stream_index == video_stream_index) {
 //            LOGD("FFMPEG Player: DECODE -------- tag ");
             //解码
@@ -134,12 +134,14 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
                 LOGD("FFMPEG Player: can not lock window. ")
             } else {
                 uint8_t *dst = (uint8_t *) nativeWindow_buffer.bits;
+                //像素数据的首地址
+                uint8_t * src=  rgb_frame->data[0];
                 //一行包含多少RGBA ---> 多少个像素
                 int destStride = nativeWindow_buffer.stride * 4;
                 //实际一行包含的像素点内存量
                 int srcStride = rgb_frame->linesize[0];
                 for (int i = 0; i < avCodecContext->height; ++i) {
-                    memcpy(dst + i * destStride, out_buffer + i * srcStride, srcStride);
+                    memcpy(dst + i * destStride, src + i * srcStride, srcStride);
                 }
                 ANativeWindow_unlockAndPost(pNativeWindow);
             }
