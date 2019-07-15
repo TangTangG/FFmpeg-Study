@@ -1,1 +1,1 @@
-include ':app', ':ffmpeg_surface', ':player'
+include ':app', ':ffmpeg_surface', ':player', ':ffmpeg_opengles'
