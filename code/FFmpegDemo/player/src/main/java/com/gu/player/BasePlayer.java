@@ -1,7 +1,4 @@
-package com.player.ffmpegdemo;
-
-import android.view.SurfaceView;
-import android.view.View;
+package com.gu.player;
 
 public abstract class BasePlayer implements SimplePlayerIface {
 

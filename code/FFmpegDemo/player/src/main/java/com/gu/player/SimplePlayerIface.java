@@ -1,10 +1,9 @@
-package com.player.ffmpegdemo;
+package com.gu.player;
 
 import android.view.SurfaceView;
 import android.view.View;
 
 public interface SimplePlayerIface {
-
 
     View init(SurfaceView surfaceView);
 

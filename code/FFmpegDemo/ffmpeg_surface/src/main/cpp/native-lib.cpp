@@ -18,7 +18,7 @@ extern "C" {
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobject surface,
+Java_com_gu_ffmpeg_1surface_FFSurfacePlayer_doFFplay(JNIEnv *env, jobject instance, jobject surface,
                                              jstring url_) {
     int result;
 

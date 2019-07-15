@@ -1,4 +1,4 @@
-package com.player.ffmpegdemo;
+package com.gu.ffmpeg_surface;
 
 import android.content.Context;
 import android.graphics.PixelFormat;
@@ -9,10 +9,12 @@ import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 
+import com.gu.player.BasePlayer;
+
 /**
  * 使用FFmpeg完成视频播放
  */
-public class FFPlayer extends BasePlayer {
+public final class FFSurfacePlayer extends BasePlayer {
 
     private final Context context;
     private SurfaceView surfaceView;
@@ -20,7 +22,7 @@ public class FFPlayer extends BasePlayer {
 
     private String playUrl;
 
-    public FFPlayer(Context context) {
+    public FFSurfacePlayer(Context context) {
         this.context = context;
     }
 
@@ -30,10 +32,10 @@ public class FFPlayer extends BasePlayer {
         this.surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(final SurfaceHolder holder) {
-                if (FFPlayer.this.holder != null) {
+                if (FFSurfacePlayer.this.holder != null) {
                     return;
                 }
-                FFPlayer.this.holder = holder;
+                FFSurfacePlayer.this.holder = holder;
                 holder.setFormat(PixelFormat.RGBA_8888);
                 final Surface surface = holder.getSurface();
                 if (surface == null || !surface.isValid()) {
@@ -44,7 +46,7 @@ public class FFPlayer extends BasePlayer {
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            doFFplay(FFPlayer.this.holder.getSurface(), playUrl);
+                            doFFplay(FFSurfacePlayer.this.holder.getSurface(), playUrl);
                         }
                     }).start();
                 }
@@ -74,10 +76,6 @@ public class FFPlayer extends BasePlayer {
         return false;
     }
 
-    /**
-     * A native method that is implemented by the 'native-lib' native library,
-     * which is packaged with this application.
-     */
     public native int doFFplay(Surface surface, String url);
 
     // Used to load the 'native-lib' library on application startup.
