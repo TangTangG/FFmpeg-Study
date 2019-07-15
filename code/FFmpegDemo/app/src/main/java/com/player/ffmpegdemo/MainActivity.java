@@ -6,7 +6,7 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.gu.ffmpeg_surface.FFSurfacePlayer;
+import com.gu.ffmpeg_decode.FFDecodePlayer;
 import com.gu.player.SimplePlayerIface;
 
 import java.io.File;
@@ -31,11 +31,11 @@ public class MainActivity extends AppCompatActivity {
     private void play() {
         final String path = new File(Environment.getExternalStorageDirectory(),"demo.mp4").getAbsolutePath();
 
-        SimplePlayerIface ffPlayer = new FFSurfacePlayer(MainActivity.this);
-
-        View view = ffPlayer.init(null);
-        ViewGroup container = findViewById(R.id.surface_container);
-        container.addView(view);
+        SimplePlayerIface ffPlayer = new FFDecodePlayer();
+//        SimplePlayerIface ffPlayer = new FFSurfacePlayer(MainActivity.this);
+//        View view = ffPlayer.init(null);
+//        ViewGroup container = findViewById(R.id.surface_container);
+//        container.addView(view);
         ffPlayer.play(path);
     }
 

@@ -1,5 +1,6 @@
 package com.gu.ffmpeg_decode;
 
+import android.os.Environment;
 import android.view.SurfaceView;
 import android.view.View;
 
@@ -12,8 +13,14 @@ public class FFDecodePlayer extends BasePlayer {
     }
 
     @Override
-    public boolean play(String url) {
-        decode(url);
+    public boolean play(final String url) {
+        final String out = Environment.getExternalStorageDirectory() + "/simple_decode.yuv";
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                decode(url,out);
+            }
+        }).start();
         return false;
     }
 
@@ -22,5 +29,5 @@ public class FFDecodePlayer extends BasePlayer {
         return false;
     }
 
-    public native void decode(String url);
+    public native void decode(String url,String out);
 }
