@@ -13,6 +13,7 @@ public class FFDecodePlayer extends BasePlayer {
 
     @Override
     public boolean play(String url) {
+        decode(url);
         return false;
     }
 
@@ -20,4 +21,6 @@ public class FFDecodePlayer extends BasePlayer {
     public boolean stop() {
         return false;
     }
+
+    public native void decode(String url);
 }
