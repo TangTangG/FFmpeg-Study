@@ -26,7 +26,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     char buf[] = {0};
 
     //we can omit this function call in ffmpeg 4.0 and later.
-    av_register_all();
+//    av_register_all();
 //    av_log_set_callback(ffmpeg_log);
 
     //初始化 码流参数 上下文
@@ -50,7 +50,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     //查找视频流对应解码器
     int video_stream_index = -1;
     for (int i = 0; i < formatContext->nb_streams; ++i) {
-        if (formatContext->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
+        if (formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             video_stream_index = i;
             break;
         }
@@ -61,9 +61,11 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
         return -1;
     }
     //初始化视频流编码器上下文
-    AVCodecContext *avCodecContext = formatContext->streams[video_stream_index]->codec;;
+    AVCodecParameters *codecpar = formatContext->streams[video_stream_index]->codecpar;
+    AVCodec *avCodec = avcodec_find_decoder(codecpar->codec_id);
+    AVCodecContext *avCodecContext = avcodec_alloc_context3(avCodec);
+    avcodec_parameters_to_context(avCodecContext, codecpar);
     //初始化对应流的编码器
-    AVCodec *avCodec = avcodec_find_decoder(avCodecContext->codec_id);
     result = avcodec_open2(avCodecContext, avCodec, NULL);
     if (result < 0) {
         LOGE("FFMPEG Player Error: Can not open video file");
@@ -93,7 +95,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
                                             width, height,
                                             AV_PIX_FMT_RGBA,
                                             SWS_BICUBIC, NULL, NULL, NULL);
-    //根据surface创建一个用于展示的window
+    //获取surface所在window
     ANativeWindow *pNativeWindow = ANativeWindow_fromSurface(env, surface);
     if (pNativeWindow == 0) {
         LOGE("FFMPEG Player Error: ANativeWindow get failed");
@@ -112,10 +114,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
     LOGD("FFMPEG Player: DECODE -------- BEGIN");
 
     while (av_read_frame(formatContext, avPacket) >= 0) {
-//        LOGD("FFMPEG Player: DECODE -------- stream_index %d", avPacket->stream_index);
-//        LOGD("FFMPEG Player: DECODE -------- codec_index %d", video_stream_index);
         if (avPacket->stream_index == video_stream_index) {
-//            LOGD("FFMPEG Player: DECODE -------- tag ");
             //解码
             ret = avcodec_send_packet(avCodecContext, avPacket);
             if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
@@ -132,6 +131,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
                       avCodecContext->height, rgb_frame->data, rgb_frame->linesize);
             if (ANativeWindow_lock(pNativeWindow, &nativeWindow_buffer, NULL) < 0) {
                 LOGD("FFMPEG Player: can not lock window. ")
+                usleep(16000);
             } else {
                 uint8_t *dst = (uint8_t *) nativeWindow_buffer.bits;
                 //像素数据的首地址
@@ -140,7 +140,7 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
                 int destStride = nativeWindow_buffer.stride * 4;
                 //实际一行包含的像素点内存量
                 int srcStride = rgb_frame->linesize[0];
-                for (int i = 0; i < avCodecContext->height; ++i) {
+                for (int i = 0; i < height; ++i) {
                     memcpy(dst + i * destStride, src + i * srcStride, srcStride);
                 }
                 ANativeWindow_unlockAndPost(pNativeWindow);
@@ -160,103 +160,4 @@ Java_com_player_ffmpegdemo_FFPlayer_doFFplay(JNIEnv *env, jobject instance, jobj
 
     env->ReleaseStringUTFChars(url_, url);
     return 0;
-
-    /*
-     ANativeWindow *nativeWindow;
-    ANativeWindow_Buffer windowBuffer;
-     AVFormatContext *pFormatCtx;
-    int i, videoindex;
-    AVCodecContext *pCodecCtx;
-    AVCodec *pCodec;
-    struct SwsContext *img_convert_ctx;
-    char input_str[500] = {0};
-    sprintf(input_str, "%s", url);
-    av_register_all();
-    avformat_network_init();
-    pFormatCtx = avformat_alloc_context();
-    if (avformat_open_input(&pFormatCtx, input_str, NULL, NULL) != 0) {
-        LOGE("Couldn't open input stream.\n");
-        return -1;
-    }
-    if (avformat_find_stream_info(pFormatCtx, NULL) < 0) {
-        LOGE("Couldn't find stream information.\n");
-        return -1;
-    }
-    videoindex = -1;
-    for (i = 0; i < pFormatCtx->nb_streams; i++)
-        if (pFormatCtx->streams[i]->codec->codec_type == AVMEDIA_TYPE_VIDEO) {
-            videoindex = i;
-            break;
-        }
-    if (videoindex == -1) {
-        LOGE("Couldn't find a video stream.\n");
-        return -1;
-    }
-    pCodecCtx = pFormatCtx->streams[videoindex]->codec;
-    pCodec = avcodec_find_decoder(pCodecCtx->codec_id);
-    if (pCodec == NULL) {
-        LOGE("Couldn't find Codec.\n");
-        return -1;
-    }
-    if (avcodec_open2(pCodecCtx, pCodec, NULL) < 0) {
-        LOGE("Couldn't open codec.\n");
-        return -1;
-    }
-    //获取界面传下来的surface
-    nativeWindow = ANativeWindow_fromSurface(env, surface);
-    if (0 == nativeWindow) {
-        LOGE("Couldn't get native window from surface.\n");
-        return -1;
-    }
-    int width = pCodecCtx->width;
-    int height = pCodecCtx->height;
-    //分配一个帧指针，指向解码后的原始帧
-    AVFrame *vFrame = av_frame_alloc();
-    AVPacket *vPacket = (AVPacket *) av_malloc(sizeof(AVPacket));
-    AVFrame *pFrameRGBA = av_frame_alloc();
-    img_convert_ctx = sws_getContext(width, height, pCodecCtx->pix_fmt,
-                                     width, height, AV_PIX_FMT_RGBA, SWS_BICUBIC, NULL, NULL, NULL);
-    if (0 >
-        ANativeWindow_setBuffersGeometry(nativeWindow, width, height, WINDOW_FORMAT_RGBA_8888)) {
-        LOGE("Couldn't set buffers geometry.\n");
-        ANativeWindow_release(nativeWindow);
-        return -1;
-    }
-    //读取帧
-    while (av_read_frame(pFormatCtx, vPacket) >= 0) {
-        if (vPacket->stream_index == videoindex) {
-            //视频解码
-            int ret = avcodec_send_packet(pCodecCtx, vPacket);
-            if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
-                LOGE("video avcodec_send_packet error %d", ret);
-                return -1;
-            }
-            ret = avcodec_receive_frame(pCodecCtx, vFrame);
-            if (ret < 0 && ret != AVERROR_EOF) {
-                LOGE("video avcodec_receive_frame error %d", ret);
-                av_packet_unref(vPacket);
-                continue;
-            }
-            //转化格式
-            sws_scale(img_convert_ctx, (const uint8_t *const *) vFrame->data, vFrame->linesize, 0,
-                      pCodecCtx->height,
-                      pFrameRGBA->data, pFrameRGBA->linesize);
-            if (ANativeWindow_lock(nativeWindow, &windowBuffer, NULL) < 0) {
-                LOGE("cannot lock window");
-            } else {
-                av_image_fill_arrays(pFrameRGBA->data, pFrameRGBA->linesize,
-                                     (const uint8_t *) windowBuffer.bits, AV_PIX_FMT_RGBA,
-                                     width, height, 1);
-                ANativeWindow_unlockAndPost(nativeWindow);
-            }
-        }
-        av_packet_unref(vPacket);
-    }
-    //释放内存
-    sws_freeContext(img_convert_ctx);
-    av_free(vPacket);
-    av_free(pFrameRGBA);
-    avcodec_close(pCodecCtx);
-    avformat_close_input(&pFormatCtx);
-    return 0;*/
 }

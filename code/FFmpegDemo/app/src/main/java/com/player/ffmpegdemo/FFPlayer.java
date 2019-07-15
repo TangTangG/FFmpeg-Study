@@ -30,25 +30,24 @@ public class FFPlayer extends BasePlayer {
         this.surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
             public void surfaceCreated(final SurfaceHolder holder) {
+                if (FFPlayer.this.holder != null) {
+                    return;
+                }
                 FFPlayer.this.holder = holder;
                 holder.setFormat(PixelFormat.RGBA_8888);
                 final Surface surface = holder.getSurface();
                 if (surface == null || !surface.isValid()) {
-                    Log.d("tang ", "surfaceCreated: ");
                     return;
                 }
-                /*new Thread(new Runnable() {
-                    @Override
-                    public void run() {
-                        if (!TextUtils.isEmpty(playUrl)) {
+                Log.d("tang ", "surfaceCreated: ");
+                if (!TextUtils.isEmpty(playUrl)) {
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
                             doFFplay(FFPlayer.this.holder.getSurface(), playUrl);
                         }
-                    }
-                });*/
-                if (!TextUtils.isEmpty(playUrl)) {
-                    doFFplay(FFPlayer.this.holder.getSurface(), playUrl);
+                    }).start();
                 }
-
             }
 
             @Override
@@ -66,13 +65,7 @@ public class FFPlayer extends BasePlayer {
 
     @Override
     public boolean play(String url) {
-       /* if (holder == null){
-
-        } else {
-
-        }
-        int result = doFFplay(holder.getSurface(), url);*/
-       this.playUrl = url;
+        this.playUrl = url;
         return false;
     }
 
