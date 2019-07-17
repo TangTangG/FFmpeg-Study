@@ -6,8 +6,9 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.ViewGroup;
 
-import com.gu.ffmpeg_decode.FFDecodePlayer;
+//import com.gu.ffmpeg_surface.FFSurfacePlayer;
 import com.gu.player.SimplePlayerIface;
+import com.player.ffmpeg_opensles_surface.FFSurfaceOpenslESPlayer;
 
 import java.io.File;
 
@@ -22,7 +23,6 @@ public class MainActivity extends AppCompatActivity {
                 .setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View view) {
-
                         play();
                     }
                 });
@@ -31,11 +31,11 @@ public class MainActivity extends AppCompatActivity {
     private void play() {
         final String path = new File(Environment.getExternalStorageDirectory(),"demo.mp4").getAbsolutePath();
 
-        SimplePlayerIface ffPlayer = new FFDecodePlayer();
-//        SimplePlayerIface ffPlayer = new FFSurfacePlayer(MainActivity.this);
-//        View view = ffPlayer.init(null);
-//        ViewGroup container = findViewById(R.id.surface_container);
-//        container.addView(view);
+//        SimplePlayerIface ffPlayer = new FFDecodePlayer();
+        SimplePlayerIface ffPlayer = new FFSurfaceOpenslESPlayer(MainActivity.this);
+        View view = ffPlayer.init(null);
+        ViewGroup container = findViewById(R.id.surface_container);
+        container.addView(view);
         ffPlayer.play(path);
     }
 

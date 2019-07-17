@@ -1,1 +1,1 @@
-include ':app', ':ffmpeg_surface', ':player', ':ffmpeg_opengles', ':ffmpeg_decode'
+include ':app', ':ffmpeg_surface', ':player', ':ffmpeg_opengles', ':ffmpeg_decode', ':ffmpeg_opensles_surface'
