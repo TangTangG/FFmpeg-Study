@@ -20,7 +20,7 @@ sws_freeContext()：释放一个SwsContext。
 
 ### sws_scale()
 
-![img](./20150317194542751)
+![img](/20150317194542751)
 
 libswscale处理数据有两条最主要的方式：unscaled和scaled。
 
