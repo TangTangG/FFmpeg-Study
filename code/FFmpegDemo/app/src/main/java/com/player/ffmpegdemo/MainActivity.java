@@ -5,6 +5,7 @@ import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 
 //import com.gu.ffmpeg_surface.FFSurfacePlayer;
 import com.gu.player.SimplePlayerIface;
@@ -29,12 +30,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void play() {
-        final String path = new File(Environment.getExternalStorageDirectory(),"demo.mp4").getAbsolutePath();
+        final String path = new File(Environment.getExternalStorageDirectory(), "demo.mp4").getAbsolutePath();
 
 //        SimplePlayerIface ffPlayer = new FFDecodePlayer();
         SimplePlayerIface ffPlayer = new FFSurfaceOpenslESPlayer(MainActivity.this);
         View view = ffPlayer.init(null);
         ViewGroup container = findViewById(R.id.surface_container);
+        int height = container.getMeasuredHeight();
+        int width = container.getMeasuredWidth();
+        if (width >= height) {
+            width = 16 * height / 9;
+        } else {
+            height = width * 9 / 16;
+        }
+        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+        view.setLayoutParams(params);
         container.addView(view);
         ffPlayer.play(path);
     }

@@ -11,6 +11,8 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+#include <libavutil/log.h>
+
 #include <android/native_window_jni.h>
 #include <unistd.h>
 }
@@ -43,7 +45,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     char buf[] = {0};
 
     //we can omit this function call in ffmpeg 4.0 and later.
-//    av_register_all();
+    //av_register_all();
     av_log_set_callback(custom_log);
 
     //初始化 码流参数 上下文
@@ -54,14 +56,14 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
         av_strerror(result, buf, 1024);
         // LOGE("%s" ,inputPath)
         LOGE("Couldn't open file %s: %d(%s)", url, result, buf);
-        LOGE("FFMPEG Player Error: Can not open video file")
+        LOGE("FFMPEG Player Error: Can not open video file");
         return ;
     }
 
     //查看文件视频流信息
     result = avformat_find_stream_info(formatContext, NULL);
     if (result < 0) {
-        LOGE("FFMPEG Player Error: Can not find video file stream info")
+        LOGE("FFMPEG Player Error: Can not find video file stream info");
         return ;
     }
     //查找视频流对应解码器
@@ -74,7 +76,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     }
 
     if (video_stream_index == -1) {
-        LOGD("FFMPEG Player : Can not find video codec")
+        LOGD("FFMPEG Player : Can not find video codec");
         return ;
     }
     //初始化视频流编码器上下文
@@ -103,7 +105,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     //建立缓存区
     uint8_t *out_buffer = (uint8_t *) av_malloc(numBytes * sizeof(uint8_t));
     //与缓存区相关联，设置rgb_frame
-    av_image_fill_arrays(rgb_frame->data, rgb_frame->linesize, (uint8_t *) out_buffer,
+    av_image_fill_arrays(rgb_frame->data, rgb_frame->linesize, out_buffer,
                          AV_PIX_FMT_RGBA,
                          width, height, 1);
 
@@ -125,7 +127,6 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     }
 
     ANativeWindow_Buffer nativeWindow_buffer;
-
     int ret;
 
     LOGD("FFMPEG Player: DECODE -------- BEGIN");
@@ -147,7 +148,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
             sws_scale(swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
                       avCodecContext->height, rgb_frame->data, rgb_frame->linesize);
             if (ANativeWindow_lock(pNativeWindow, &nativeWindow_buffer, NULL) < 0) {
-                LOGD("FFMPEG Player: can not lock window. ")
+                LOGD("FFMPEG Player: can not lock window. ");
                 usleep(16000);
             } else {
                 uint8_t *dst = (uint8_t *) nativeWindow_buffer.bits;

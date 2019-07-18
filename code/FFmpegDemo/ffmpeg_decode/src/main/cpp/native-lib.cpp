@@ -125,8 +125,8 @@ Java_com_gu_ffmpeg_1decode_FFDecodePlayer_decode(JNIEnv *env, jobject instance, 
                       height, yuvFrame->data, yuvFrame->linesize);
             y_count = width *height;
             fwrite(yuvFrame->data[0],1,y_count,fp_yuv);//y
-            fwrite(yuvFrame->data[1],1,y_count >> 2,fp_yuv);//u
-            fwrite(yuvFrame->data[2],1,y_count >> 2,fp_yuv);//v
+            fwrite(yuvFrame->data[1],1,y_count >> 1,fp_yuv);//u
+            fwrite(yuvFrame->data[2],1,y_count >> 1,fp_yuv);//v
 
             //Output info
             char pictype_str[10]={0};
@@ -157,8 +157,8 @@ Java_com_gu_ffmpeg_1decode_FFDecodePlayer_decode(JNIEnv *env, jobject instance, 
                   height, yuvFrame->data, yuvFrame->linesize);
         y_count = width *height;
         fwrite(yuvFrame->data[0],1,y_count,fp_yuv);//y
-        fwrite(yuvFrame->data[1],1,y_count >> 2,fp_yuv);//u
-        fwrite(yuvFrame->data[2],1,y_count >> 2,fp_yuv);//v
+        fwrite(yuvFrame->data[1],1,y_count >> 1,fp_yuv);//u
+        fwrite(yuvFrame->data[2],1,y_count >> 1,fp_yuv);//v
 
         //Output info
         char pictype_str[10]={0};

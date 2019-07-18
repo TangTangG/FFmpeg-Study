@@ -66,6 +66,7 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
 
     @Override
     public boolean play(String url) {
+        this.playUrl = url;
         return false;
     }
 
