@@ -107,7 +107,7 @@ FFThreadPoolContext *ff_threadpool_create(int thread_count, int queue_size, int 
 
 /**
  * 1.异常处理
- * 2.容量检测-》扩容
+ * 2.容量检测->扩容
  * 3.添加
  */
 int ff_threadpool_add(FFThreadPoolContext *ctx, Runable fun, void *in_arg, void *out_arg) {
@@ -174,39 +174,40 @@ int ff_threadpool_freep(FFThreadPoolContext **ctx) {
 
     ret = ff_threadpool_free(*ctx);
     *ctx = NULL;
-    return ret;}
+    return ret;
+}
 
-int ff_threadpool_destory(FFThreadPoolContext *ctx, int flags){
-    int i,err = 0;
+int ff_threadpool_destory(FFThreadPoolContext *ctx, int flags) {
+    int i, err = 0;
 
-    if (ctx == NULL){
+    if (ctx == NULL) {
         return FF_THREADPOLL_INVALID;
     }
 
-    if (pthread_mutex_unlock(&(ctx->lock)) != 0){
+    if (pthread_mutex_unlock(&(ctx->lock)) != 0) {
         return FF_THREADPOLL_LOCK_FAILURE;
     }
 
-    do{
-        if (ctx->shutdown){
+    do {
+        if (ctx->shutdown) {
             err = FF_THREADPOLL_SHUTDOWN;
             break;
         }
 
-        ctx->shutdown =flags;
+        ctx->shutdown = flags;
         if ((pthread_cond_broadcast(&(ctx->notify)) != 0) ||
-                (pthread_mutex_unlock(&(ctx->lock)) != 0)){
+            (pthread_mutex_unlock(&(ctx->lock)) != 0)) {
             err = FF_THREADPOLL_LOCK_FAILURE;
             break;
         }
         for (int i = 0; i < ctx->thread_count; ++i) {
-            if (pthread_join(ctx->threads[i],NULL) != 0){
+            if (pthread_join(ctx->threads[i], NULL) != 0) {
                 err = FF_THREADPOLL_THREAD_FAILURE;
             }
         }
-    }while(0);
+    } while (0);
 
-    if (!err){
+    if (!err) {
         return ff_threadpool_freep(&ctx);
     }
 

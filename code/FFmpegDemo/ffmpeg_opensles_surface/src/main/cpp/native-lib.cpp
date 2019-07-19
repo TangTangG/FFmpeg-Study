@@ -15,29 +15,13 @@ extern "C" {
 
 #include <android/native_window_jni.h>
 #include <unistd.h>
-}
-
-
-void custom_log(void *ptr, int level, const char *fmt, va_list vl) {
-    /*r 打开只读文件，该文件必须存在。 
-    *r+ 打开可读写的文件，该文件必须存在。 
-    *w 打开只写文件，若文件存在则文件长度清为0，即该文件内容会消失。若文件不存在则建立该文件。 
-    *w+ 打开可读写文件，若文件存在则文件长度清为零，即该文件内容会消失。若文件不存在则建立该文件。 
-    *a 以附加的方式打开只写文件。若文件不存在，则会建立该文件，如果文件存在，写入的数据会被加到文件尾，即文件原先的内容会被保留。 
-    *a+ 以附加方式打开可读写的文件。若文件不存在，则会建立该文件，如果文件存在，写入的数据会被加到文件尾后，即文件原先的内容会被保留。 
-    *上述的形态字符串都可以再加一个b字符，如rb、w+b或ab+等组合，
-     加入b 字符用来告诉函数库打开的文件为二进制文件，而非纯文字文件*/
-    FILE *fp = fopen("/storage/emulated/0/av_log.txt", "a+");
-    if (fp) {
-        vfprintf(fp, fmt, vl);
-        fflush(fp);
-        fclose(fp);
-    }
+#include "util/FF_Log.h"
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEnv *env, jobject instance, jobject surface,
+Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEnv *env,
+                                                                           jobject instance,jobject surface,
                                                                            jstring url_) {
     int result;
 
@@ -46,7 +30,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
 
     //we can omit this function call in ffmpeg 4.0 and later.
     //av_register_all();
-    av_log_set_callback(custom_log);
+    av_log_set_callback(ffmpeg_log);
 
     //初始化 码流参数 上下文
     AVFormatContext *formatContext = avformat_alloc_context();
@@ -57,14 +41,14 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
         // LOGE("%s" ,inputPath)
         LOGE("Couldn't open file %s: %d(%s)", url, result, buf);
         LOGE("FFMPEG Player Error: Can not open video file");
-        return ;
+        return;
     }
 
     //查看文件视频流信息
     result = avformat_find_stream_info(formatContext, NULL);
     if (result < 0) {
         LOGE("FFMPEG Player Error: Can not find video file stream info");
-        return ;
+        return;
     }
     //查找视频流对应解码器
     int video_stream_index = -1;
@@ -77,7 +61,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
 
     if (video_stream_index == -1) {
         LOGD("FFMPEG Player : Can not find video codec");
-        return ;
+        return;
     }
     //初始化视频流编码器上下文
     AVCodecParameters *codecpar = formatContext->streams[video_stream_index]->codecpar;
@@ -88,7 +72,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     result = avcodec_open2(avCodecContext, avCodec, NULL);
     if (result < 0) {
         LOGE("FFMPEG Player Error: Can not open video file");
-        return ;
+        return;
     }
 
     int width = avCodecContext->width;
@@ -118,12 +102,12 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     ANativeWindow *pNativeWindow = ANativeWindow_fromSurface(env, surface);
     if (pNativeWindow == 0) {
         LOGE("FFMPEG Player Error: ANativeWindow get failed");
-        return ;
+        return;
     }
     if (ANativeWindow_setBuffersGeometry(pNativeWindow, width, height, WINDOW_FORMAT_RGBA_8888) <
         0) {
         LOGE("FFMPEG Player Error: Couldn't set buffers geometry.");
-        return ;
+        return;
     }
 
     ANativeWindow_Buffer nativeWindow_buffer;
@@ -136,7 +120,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
             //解码
             ret = avcodec_send_packet(avCodecContext, avPacket);
             if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
-                return ;
+                return;
             }
             ret = avcodec_receive_frame(avCodecContext, avFrame);
             if (ret < 0 && ret != AVERROR_EOF) {
@@ -153,7 +137,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
             } else {
                 uint8_t *dst = (uint8_t *) nativeWindow_buffer.bits;
                 //像素数据的首地址
-                uint8_t * src=  rgb_frame->data[0];
+                uint8_t *src = rgb_frame->data[0];
                 //一行包含多少RGBA ---> 多少个像素
                 int destStride = nativeWindow_buffer.stride * 4;
                 //实际一行包含的像素点内存量
