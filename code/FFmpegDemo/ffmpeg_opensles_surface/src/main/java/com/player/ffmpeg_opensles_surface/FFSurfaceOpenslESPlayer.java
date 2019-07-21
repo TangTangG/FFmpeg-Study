@@ -62,6 +62,10 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
         return this.surfaceView;
     }
 
+    private native void doFFInit(Surface surface);
+
+    private native void doFFPrepare();
+
     private native void doFFplay(Surface surface, String playUrl);
 
     @Override

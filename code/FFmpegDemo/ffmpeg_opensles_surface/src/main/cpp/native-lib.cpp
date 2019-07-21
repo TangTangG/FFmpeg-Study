@@ -16,12 +16,16 @@ extern "C" {
 #include <android/native_window_jni.h>
 #include <unistd.h>
 #include "util/FF_Log.h"
+#include "FFNativePlayer.h"
 }
+
+FFNativePlayer *player = 0;
 
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEnv *env,
-                                                                           jobject instance,jobject surface,
+                                                                           jobject instance,
+                                                                           jobject surface,
                                                                            jstring url_) {
     int result;
 
@@ -161,4 +165,24 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     avformat_close_input(&formatContext);
 
     env->ReleaseStringUTFChars(url_, url);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFInit(JNIEnv *env,
+                                                                           jobject instance,
+                                                                           jobject surface) {
+    if (player) {
+        player->ff_destroy();
+    }
+    player->ff_register();
+
+    player->ff_init(surface);
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFPrepare(JNIEnv *env,
+                                                                              jobject instance) {
+
 }

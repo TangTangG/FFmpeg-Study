@@ -15,12 +15,20 @@ extern "C" {
 #include <android/native_window_jni.h>
 #include <unistd.h>
 #include "util/FF_Log.h"
+#include "FFMpegAudio.h"
+#include "FFMpegVideo.h"
 }
 
 class FFNativePlayer {
 
 public:
+    void ff_init(jobject surface);
     void ff_register();
+    void ff_prepare();
+    int ff_state();
+    void ff_destroy();
+
+    static bool ff_inited = false;
 };
 
 
