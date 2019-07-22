@@ -43,7 +43,7 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
-                            doFFplay(FFSurfaceOpenslESPlayer.this.holder.getSurface(), playUrl);
+                            doFFPlay(playUrl);
                         }
                     }).start();
                 }
@@ -61,12 +61,6 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
         });
         return this.surfaceView;
     }
-
-    private native void doFFInit(Surface surface);
-
-    private native void doFFPrepare();
-
-    private native void doFFplay(Surface surface, String playUrl);
 
     @Override
     public boolean play(String url) {

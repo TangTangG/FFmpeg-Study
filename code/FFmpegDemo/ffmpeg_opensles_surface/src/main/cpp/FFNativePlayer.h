@@ -22,13 +22,35 @@ extern "C" {
 class FFNativePlayer {
 
 public:
-    void ff_init(jobject surface);
-    void ff_register();
+    static bool ff_inited = false;
+
+    void ff_init(JNIEnv *env);
+
     void ff_prepare();
-    int ff_state();
+
     void ff_destroy();
 
-    static bool ff_inited = false;
+    void ff_start();
+
+    jlong ff_pause();
+
+    jlong ff_stop();
+
+    jlong ff_seek_to(jlong i);
+
+    void ff_rest(JNIEnv *pEnv);
+
+    jlong ff_set_data_source(JNIEnv *pEnv, const char *string);
+
+    void ff_attach_window(JNIEnv *pEnv, jobject pJobject);
+
+    jlong ff_get_current_pos(JNIEnv *pEnv);
+
+    int ff_state();
+
+private:
+    FFMpegVideo *video;
+    FFMpegAudio *audio;
 };
 
 

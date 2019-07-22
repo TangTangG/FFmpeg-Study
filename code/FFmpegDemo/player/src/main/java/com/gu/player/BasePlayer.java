@@ -1,5 +1,7 @@
 package com.gu.player;
 
+import android.view.Surface;
+
 public abstract class BasePlayer implements SimplePlayerIface {
 
     @Override
@@ -23,5 +25,43 @@ public abstract class BasePlayer implements SimplePlayerIface {
         System.loadLibrary("avfilter-7");
         System.loadLibrary("native-lib");
     }
+
+
+    protected native void doFFInit();
+
+    protected native void doFFPrepare();
+
+    protected native void doFFStart();
+
+    /**
+     * @return pause position
+     */
+    protected native long doFFPause();
+
+    /**
+     * @return stop position
+     */
+    protected native long doFFStop();
+
+    protected native long doFFSeekTo(long target);
+
+    protected native void doFFDestroy();
+
+    protected native void doFFRest();
+
+    /**
+     * start and play
+     * @return total duration
+     */
+    protected native long doFFPlay(String playUrl);
+
+    /**
+     * @return total duration
+     */
+    protected native long setFFDataSource(String playUrl);
+
+    protected native void attachFFView(Surface surface);
+
+    protected native long getFFPos();
 
 }

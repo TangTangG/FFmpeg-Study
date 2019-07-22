@@ -169,20 +169,102 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFInit(JNIEnv *env,
-                                                                           jobject instance,
-                                                                           jobject surface) {
+Java_com_gu_player_BasePlayer_doFFInit(JNIEnv *env, jobject instance) {
+
     if (player) {
         player->ff_destroy();
+        player = NULL;
     }
-    player->ff_register();
-
-    player->ff_init(surface);
+    player->ff_init(env);
 }
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFPrepare(JNIEnv *env,
-                                                                              jobject instance) {
+Java_com_gu_player_BasePlayer_doFFPrepare(JNIEnv *env, jobject instance) {
+    player->ff_prepare();
+}
 
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_gu_player_BasePlayer_doFFStart(JNIEnv *env, jobject instance) {
+
+    player->ff_start();
+
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_gu_player_BasePlayer_doFFPause(JNIEnv *env, jobject instance) {
+
+    jlong pausePos = player->ff_pause();
+    return 0;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_gu_player_BasePlayer_doFFStop(JNIEnv *env, jobject instance) {
+
+    jlong stopPos = player->ff_stop();
+
+    return 0;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_gu_player_BasePlayer_doFFSeekTo(JNIEnv *env, jobject instance, jlong target) {
+
+    jlong finalPos = player->ff_seek_to(target);
+    return 0;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_gu_player_BasePlayer_doFFDestroy(JNIEnv *env, jobject instance) {
+
+    player->ff_destroy();
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_gu_player_BasePlayer_doFFRest(JNIEnv *env, jobject instance) {
+    player->ff_rest(env);
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_gu_player_BasePlayer_doFFPlay(JNIEnv *env, jobject instance, jstring playUrl_) {
+    const char *playUrl = env->GetStringUTFChars(playUrl_, 0);
+
+    jlong  duration = player->ff_set_data_source(env,playUrl);
+    player->ff_start();
+
+    env->ReleaseStringUTFChars(playUrl_, playUrl);
+    return 0;
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_gu_player_BasePlayer_setFFDataSource(JNIEnv *env, jobject instance, jstring playUrl_) {
+    const char *playUrl = env->GetStringUTFChars(playUrl_, 0);
+
+    jlong  duration = player->ff_set_data_source(env,playUrl);
+
+    env->ReleaseStringUTFChars(playUrl_, playUrl);
+    return 0;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_gu_player_BasePlayer_attachFFView(JNIEnv *env, jobject instance, jobject surface) {
+
+    player->ff_attach_window(env,surface);
+
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_com_gu_player_BasePlayer_getFFPos(JNIEnv *env, jobject instance) {
+
+    jlong  duration = player->ff_get_current_pos(env);
+    return 0;
 }
