@@ -47,6 +47,7 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
                             doFFPlay(playUrl);
                         }
                     }).start();
+
                 }
             }
 

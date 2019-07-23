@@ -3,6 +3,11 @@
 //
 
 #include "FFNativePlayer.h"
+#include "util/FFThreadPool.h"
+
+
+#define FF_THREAD_POOL_CORE 8
+#define FF_THREAD_POOL_QUEUE 64
 
 //error define ----begin
 char errorBuf[] = {0};
@@ -14,10 +19,10 @@ static bool ff_debug = true;
 static bool ff_inited = false;
 FFMpegVideo *video;
 FFMpegAudio *audio;
-AVFormatContext *formatContext;
+AVFormatContext *formatCtx;
 //video decoder
 AVCodec *avCodec;
-AVCodecContext *avCodecContext;
+AVCodecContext *avCodecCtx;
 int video_stream_index;
 //surface
 SwsContext *swsContext;
@@ -26,6 +31,8 @@ ANativeWindow *pNativeWindow;
 
 AVFrame *avFrame;
 AVFrame *rgb_frame;
+
+FFThreadPoolContext *threadPoolCtx;
 
 void FFNativePlayer::ff_notify_msg(int tag, const char *msg) {
 
@@ -46,11 +53,13 @@ void FFNativePlayer::ff_uninit() {
 
 void FFNativePlayer::ff_prepare() {
 
-    formatContext = avformat_alloc_context();
+    formatCtx = avformat_alloc_context();
     flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     av_init_packet(flush_pkt);
     avFrame = av_frame_alloc();
     rgb_frame = av_frame_alloc();
+    //分配线程池
+    threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE,FF_THREAD_POOL_QUEUE,0);
     //分配解码音频和视频的queue
 }
 
@@ -68,6 +77,12 @@ int FFNativePlayer::ff_state() {
     return 0;
 }
 
+static void ff_do_render(void* in,void* out){
+    int height = avCodecCtx->height;
+
+
+}
+
 void FFNativePlayer::ff_init(JNIEnv *env) {
     if (ff_inited) {
         return;
@@ -79,17 +94,17 @@ void FFNativePlayer::ff_init(JNIEnv *env) {
 }
 
 void FFNativePlayer::ff_start() {
-
     if (!playerCheck()) {
         return;
     }
-    errorState = avcodec_open2(avCodecContext, avCodec, NULL);
+    errorState = avcodec_open2(avCodecCtx, avCodec, NULL);
     if (errorState < 0) {
         LOGE("FFMPEG Player Error: Can not open video file");
     }
+
     //分配缓存区域，取帧 渲染
-    int width = avCodecContext->width;
-    int height = avCodecContext->height;
+    int width = avCodecCtx->width;
+    int height = avCodecCtx->height;
     int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 1);
     //建立缓存区
     uint8_t *out_buffer = (uint8_t *) av_malloc(numBytes * sizeof(uint8_t));
@@ -99,7 +114,7 @@ void FFNativePlayer::ff_start() {
                          width, height, 1);
 
     swsContext = sws_getContext(width, height,
-                                avCodecContext->pix_fmt,
+                                avCodecCtx->pix_fmt,
                                 width, height,
                                 AV_PIX_FMT_RGBA,
                                 SWS_BICUBIC, NULL, NULL, NULL);
@@ -108,20 +123,21 @@ void FFNativePlayer::ff_start() {
         LOGE("FFMPEG Player Error: Couldn't set buffers geometry.");
         return;
     }
+//    ff_threadpool_add(threadPoolCtx,ff_do_render,NULL,NULL);
 
     int ret;
     ANativeWindow_Buffer nativeWindow_buffer;
     //开始取帧 渲染流程
-    while (av_read_frame(formatContext, flush_pkt) >= 0) {
+    while (av_read_frame(formatCtx, flush_pkt) >= 0) {
         if (flush_pkt->stream_index == video_stream_index) {
             //解码
-            ret = avcodec_send_packet(avCodecContext, flush_pkt);
+            ret = avcodec_send_packet(avCodecCtx, flush_pkt);
             if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
                 LOGE("video avcodec_send_packet error %d", ret);
                 return;
             }
 
-            ret = avcodec_receive_frame(avCodecContext, avFrame);
+            ret = avcodec_receive_frame(avCodecCtx, avFrame);
             if (ret < 0 && ret != AVERROR_EOF) {
                 LOGE("video avcodec_receive_frame error %d", ret);
                 av_packet_unref(flush_pkt);
@@ -129,7 +145,7 @@ void FFNativePlayer::ff_start() {
             }
 
             sws_scale(swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
-                      avCodecContext->height, rgb_frame->data, rgb_frame->linesize);
+                      avCodecCtx->height, rgb_frame->data, rgb_frame->linesize);
             if (ANativeWindow_lock(pNativeWindow, &nativeWindow_buffer, NULL) < 0) {
                 LOGD("FFMPEG Player: can not lock window. ");
                 usleep(16000);
@@ -184,7 +200,7 @@ void FFNativePlayer::ff_rest(JNIEnv *pEnv) {
  * 准备数据流 -------- 解码
  */
 jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
-    errorState = avformat_open_input(&formatContext, url, NULL, NULL);
+    errorState = avformat_open_input(&formatCtx, url, NULL, NULL);
     if (errorState < 0) {
         av_strerror(errorState, errorBuf, 1024);
         LOGE("Couldn't open file %s: %d(%s)", url, errorState, errorBuf);
@@ -193,16 +209,16 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
     }
 
     //查看文件视频流信息
-    errorState = avformat_find_stream_info(formatContext, NULL);
+    errorState = avformat_find_stream_info(formatCtx, NULL);
     if (errorState < 0) {
         ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
         return 0L;
     }
     //查找视频流对应解码器
-    video_stream_index = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
+    video_stream_index = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
                                                  0);
-    /*for (int i = 0; i < formatContext->nb_streams; ++i) {
-        if (formatContext->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
+    /*for (int i = 0; i < formatCtx->nb_streams; ++i) {
+        if (formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
             video_stream_index = i;
             break;
         }
@@ -214,38 +230,38 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
     }
 
     //初始化视频流编码器上下文
-    AVCodecParameters *codecpar = formatContext->streams[video_stream_index]->codecpar;
+    AVCodecParameters *codecpar = formatCtx->streams[video_stream_index]->codecpar;
     avCodec = avcodec_find_decoder(codecpar->codec_id);
-    avCodecContext = avcodec_alloc_context3(avCodec);
+    avCodecCtx = avcodec_alloc_context3(avCodec);
     if (ff_debug) {
         LOGD("---------- dumping stream info begin ----------");
 
-        LOGD("input format: %s", formatContext->iformat->name);
-        LOGD("nb_streams: %d", formatContext->nb_streams);
+        LOGD("input format: %s", formatCtx->iformat->name);
+        LOGD("nb_streams: %d", formatCtx->nb_streams);
 
-        int64_t start_time = formatContext->start_time / AV_TIME_BASE;
+        int64_t start_time = formatCtx->start_time / AV_TIME_BASE;
         LOGD("start_time: %lld", start_time);
 
-        int64_t duration = formatContext->duration / AV_TIME_BASE;
+        int64_t duration = formatCtx->duration / AV_TIME_BASE;
         LOGD("duration: %lld s", duration);
 
-        int video_stream_idx = av_find_best_stream(formatContext, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
+        int video_stream_idx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
                                                    0);
         if (video_stream_idx >= 0) {
-            AVStream *video_stream = formatContext->streams[video_stream_idx];
+            AVStream *video_stream = formatCtx->streams[video_stream_idx];
             LOGD("video nb_frames: %lld", video_stream->nb_frames);
             LOGD("video codec_id: %d", codecpar->codec_id);
             LOGD("video codec_name: %s", avcodec_get_name(codecpar->codec_id));
             LOGD("video width x height: %d x %d", codecpar->width, codecpar->height);
-            LOGD("video pix_fmt: %d", avCodecContext->pix_fmt);
+            LOGD("video pix_fmt: %d", avCodecCtx->pix_fmt);
             LOGD("video bitrate %lld kb/s", (int64_t) codecpar->bit_rate / 1000);
             LOGD("video avg_frame_rate: %d fps",
                  video_stream->avg_frame_rate.num / video_stream->avg_frame_rate.den);
         }
 
-        /* int audio_stream_idx = av_find_best_stream(formatContext, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
+        /* int audio_stream_idx = av_find_best_stream(formatCtx, AVMEDIA_TYPE_AUDIO, -1, -1, NULL, 0);
          if (audio_stream_idx >= 0) {
-             AVStream *audio_stream = formatContext->streams[audio_stream_idx];
+             AVStream *audio_stream = formatCtx->streams[audio_stream_idx];
              LOGD("audio codec_id: %d", codecpar->codec_id);
              LOGD("audio codec_name: %s", avcodec_get_name(codecpar->codec_id));
              LOGD("audio sample_rate: %d", codecpar->sample_rate);
@@ -258,8 +274,8 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
 
         LOGD("---------- dumping stream info end ----------");
     }
-    avcodec_parameters_to_context(avCodecContext, codecpar);
-    return formatContext->duration / AV_TIME_BASE;
+    avcodec_parameters_to_context(avCodecCtx, codecpar);
+    return formatCtx->duration / AV_TIME_BASE;
 }
 
 void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
@@ -280,7 +296,7 @@ bool FFNativePlayer::playerCheck() {
     if (!ff_inited) {
         return false;
     }
-    if (avCodecContext == 0) {
+    if (avCodecCtx == 0) {
         ff_notify_msg(1, "initial player first.");
         return false;
     }
@@ -296,8 +312,8 @@ void FFNativePlayer::ff_release() {
     sws_freeContext(swsContext);
     av_frame_free(&avFrame);
     av_frame_free(&rgb_frame);
-    avcodec_close(avCodecContext);
-    avformat_close_input(&formatContext);
+    avcodec_close(avCodecCtx);
+    avformat_close_input(&formatCtx);
 
 }
 

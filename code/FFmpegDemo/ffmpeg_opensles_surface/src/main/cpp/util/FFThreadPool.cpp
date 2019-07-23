@@ -9,7 +9,7 @@
 #include <unistd.h>
 
 /**
- * 创建并执行任务
+ * 开启线程池轮询
  */
 static void *ff_threadpool_thread(void *pool_ctx) {
     FFThreadPoolContext *ctx = static_cast<FFThreadPoolContext *>(pool_ctx);
