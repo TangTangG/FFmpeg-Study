@@ -69,6 +69,9 @@ void FFNativePlayer::ff_rest(JNIEnv *pEnv) {
 
 }
 
+/**
+ * 准备数据流
+ */
 jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *string) {
     return 0;
 }
