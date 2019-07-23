@@ -40,6 +40,7 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
                 }
                 Log.d("tang ", "surfaceCreated: ");
                 if (!TextUtils.isEmpty(playUrl)) {
+                    attachFFView(surface);
                     new Thread(new Runnable() {
                         @Override
                         public void run() {
@@ -59,12 +60,14 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
 
             }
         });
+        doFFInit();
         return this.surfaceView;
     }
 
     @Override
     public boolean play(String url) {
         this.playUrl = url;
+        doFFPrepare();
         return false;
     }
 

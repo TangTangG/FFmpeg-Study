@@ -9,6 +9,10 @@ extern "C" {
 #include "android/log.h"
 #include "libavutil/log.h"
 
+#define LOGE(FORMAT, ...) __android_log_print(ANDROID_LOG_ERROR, "player", FORMAT, ##__VA_ARGS__);
+
+#define LOGD(FORMAT, ...) __android_log_print(ANDROID_LOG_DEBUG, "player", FORMAT, ##__VA_ARGS__);
+
 
 #define FF_LOG_TAG "FFMPEG_LOG_"
 

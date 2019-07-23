@@ -92,7 +92,7 @@ Java_com_player_ffmpeg_1opensles_1surface_FFSurfaceOpenslESPlayer_doFFplay(JNIEn
     int numBytes = av_image_get_buffer_size(AV_PIX_FMT_RGBA, width, height, 1);
     //建立缓存区
     uint8_t *out_buffer = (uint8_t *) av_malloc(numBytes * sizeof(uint8_t));
-    //与缓存区相关联，设置rgb_frame
+    //填充rgb_frame
     av_image_fill_arrays(rgb_frame->data, rgb_frame->linesize, out_buffer,
                          AV_PIX_FMT_RGBA,
                          width, height, 1);

@@ -22,7 +22,6 @@ extern "C" {
 class FFNativePlayer {
 
 public:
-    static bool ff_inited = false;
 
     void ff_init(JNIEnv *env);
 
@@ -40,17 +39,27 @@ public:
 
     void ff_rest(JNIEnv *pEnv);
 
-    jlong ff_set_data_source(JNIEnv *pEnv, const char *string);
+    jlong ff_set_data_source(JNIEnv *pEnv, const char *url);
 
-    void ff_attach_window(JNIEnv *pEnv, jobject pJobject);
+    void ff_attach_window(JNIEnv *pEnv, jobject surface);
 
     jlong ff_get_current_pos(JNIEnv *pEnv);
 
     int ff_state();
 
 private:
-    FFMpegVideo *video;
-    FFMpegAudio *audio;
+
+
+
+    bool playerCheck();
+
+    void ff_notify_msg(int tag, const char *msg);
+
+    void ff_register();
+
+    void ff_uninit();
+
+    void ff_release();
 };
 
 
