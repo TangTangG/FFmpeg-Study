@@ -14,7 +14,7 @@ char errorBuf[] = {0};
 int errorState;
 //error define ----end
 
-AVPacket *flush_pkt;
+static AVPacket *flush_pkt;
 static bool ff_debug = true;
 static bool ff_inited = false;
 FFMpegVideo *video;

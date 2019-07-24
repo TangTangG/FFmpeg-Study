@@ -50,8 +50,6 @@ public:
 
 private:
 
-
-
     bool playerCheck();
 
     void ff_notify_msg(int tag, const char *msg);

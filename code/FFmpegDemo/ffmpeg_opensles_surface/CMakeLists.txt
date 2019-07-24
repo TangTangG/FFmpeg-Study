@@ -25,6 +25,7 @@ add_library( # Sets the name of the library.
         src/main/cpp/FFNativePlayer.cpp
         src/main/cpp/util/FFThreadPool.cpp
         src/main/cpp/util/FF_Log.cpp
+        src/main/cpp/Data.cpp
         )
 
 # Searches for a specified prebuilt library and stores the path as a
