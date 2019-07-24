@@ -2,8 +2,8 @@
 // Created by tangcaigao on 2019/7/19.
 //
 
+#include "util/FFThreadPool.h"
 #include "FFNativePlayer.h"
-//#include "util/FFThreadPool.h"
 
 #define FF_THREAD_POOL_CORE 8
 #define FF_THREAD_POOL_QUEUE 64
@@ -55,7 +55,7 @@ void FFNativePlayer::ff_prepare() {
     playerCtx->debug = true;
 
     //分配线程池
-//    playerCtx->threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE,FF_THREAD_POOL_QUEUE,0);
+    playerCtx->threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE,FF_THREAD_POOL_QUEUE,0);
     video->create(playerCtx);
     //分配解码音频和视频的queue
 }
@@ -74,16 +74,16 @@ int FFNativePlayer::ff_state() {
 }
 
 static void ff_do_render(void* playerCtx,void* out){
-
+    video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
 }
 
 void FFNativePlayer::ff_start() {
     if (!playerCheck()) {
         return;
     }
-    video->render((playerCtx), 0);
+//    video->render((playerCtx), 0);
 
-//    ff_threadpool_add(playerCtx->threadPoolCtx,ff_do_render,playerCtx,NULL);
+    ff_threadpool_add(playerCtx->threadPoolCtx,ff_do_render,playerCtx,NULL);
 }
 
 /**

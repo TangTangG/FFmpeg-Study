@@ -41,13 +41,7 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
                 Log.d("tang ", "surfaceCreated: ");
                 if (!TextUtils.isEmpty(playUrl)) {
                     attachFFView(surface);
-                    new Thread(new Runnable() {
-                        @Override
-                        public void run() {
-                            doFFPlay(playUrl);
-                        }
-                    }).start();
-
+                    doFFPlay(playUrl);
                 }
             }
 
