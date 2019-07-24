@@ -9,12 +9,17 @@
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+#include "util/FFThreadPool.h"
 #include <android/native_window_jni.h>
 
 typedef struct NativePlayerContext {
+
+    void *display;
+
     AVFormatContext *formatCtx;
-
-
-};
+    FFThreadPoolContext *threadPoolCtx;
+    jobject *callback;
+    bool debug;
+}NativePlayerContext;
 
 #endif //FFMPEGDEMO_DATA_H

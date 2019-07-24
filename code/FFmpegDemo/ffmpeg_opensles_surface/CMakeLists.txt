@@ -20,12 +20,12 @@ add_library( # Sets the name of the library.
 
         # Provides a relative path to your source file(s).
         src/main/cpp/native-lib.cpp
-        src/main/cpp/FFMpegVideo.cpp
-        src/main/cpp/FFMpegAudio.cpp
-        src/main/cpp/FFNativePlayer.cpp
         src/main/cpp/util/FFThreadPool.cpp
         src/main/cpp/util/FF_Log.cpp
         src/main/cpp/Data.cpp
+        src/main/cpp/FFMpegVideo.cpp
+        src/main/cpp/FFMpegAudio.cpp
+        src/main/cpp/FFNativePlayer.cpp
         )
 
 # Searches for a specified prebuilt library and stores the path as a

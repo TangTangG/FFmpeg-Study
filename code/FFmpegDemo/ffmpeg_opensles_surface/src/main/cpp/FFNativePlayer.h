@@ -17,6 +17,8 @@ extern "C" {
 #include "util/FF_Log.h"
 #include "FFMpegAudio.h"
 #include "FFMpegVideo.h"
+#include "Data.h"
+#include "util/FFThreadPool.h"
 }
 
 
@@ -51,8 +53,6 @@ public:
 private:
 
     bool playerCheck();
-
-    void ff_notify_msg(int tag, const char *msg);
 
     void ff_register();
 

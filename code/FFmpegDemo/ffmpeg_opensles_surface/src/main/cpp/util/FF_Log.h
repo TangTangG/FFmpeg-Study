@@ -7,12 +7,10 @@
 
 extern "C" {
 #include "android/log.h"
-#include "libavutil/log.h"
 
 #define LOGE(FORMAT, ...) __android_log_print(ANDROID_LOG_ERROR, "player", FORMAT, ##__VA_ARGS__);
 
 #define LOGD(FORMAT, ...) __android_log_print(ANDROID_LOG_DEBUG, "player", FORMAT, ##__VA_ARGS__);
-
 
 #define FF_LOG_TAG "FFMPEG_LOG_"
 
@@ -30,6 +28,7 @@ extern "C" {
 #define ALOGI(...)  ALOG(ANDROID_LOG_INFO,      FF_LOG_TAG, __VA_ARGS__)
 #define ALOGW(...)  ALOG(ANDROID_LOG_WARN,      FF_LOG_TAG, __VA_ARGS__)
 #define ALOGE(...)  ALOG(ANDROID_LOG_ERROR,     FF_LOG_TAG, __VA_ARGS__)
+
 
 static void ffmpeg_log(void *ptr, int level, const char *fmt, va_list vl) {
     int ffplv;
@@ -58,5 +57,6 @@ static void ffmpeg_log(void *ptr, int level, const char *fmt, va_list vl) {
     ALOG(ffplv, FF_LOG_TAG, "%s", line);
 }
 }
-
+static void ff_notify_msg(int tag, const char *msg) {
+}
 #endif //FFMPEGDEMO_FF_LOG_H
