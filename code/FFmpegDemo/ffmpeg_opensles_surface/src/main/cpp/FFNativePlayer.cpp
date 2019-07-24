@@ -118,6 +118,22 @@ void FFNativePlayer::ff_rest(JNIEnv *pEnv) {
  * 准备数据流 -------- 解码
  */
 jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
+    char errorBuf[] = {0};
+    int errorState;
+    AVFormatContext *formatCtx = playerCtx->formatCtx;
+    errorState = avformat_open_input(&formatCtx, url, NULL, NULL);
+    if (errorState < 0) {
+        av_strerror(errorState, errorBuf, 1024);
+        LOGE("Couldn't open file %s: %d(%s)", url, errorState, errorBuf);
+        ff_notify_msg(errorState, "FFMPEG Player Error: Can not open video file");
+        return 0L;
+    }
+    //查看文件视频流信息
+    errorState = avformat_find_stream_info(formatCtx, NULL);
+    if (errorState < 0) {
+        ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
+        return 0L;
+    }
     jlong duration = video->decode(playerCtx, url);
     return duration;
 }

@@ -33,31 +33,13 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
 
 jlong FFMpegVideo::decode(NativePlayerContext *ctx, const char *url) {
     AVFormatContext *formatCtx = ctx->formatCtx;
-    errorState = avformat_open_input(&formatCtx, url, NULL, NULL);
-    if (errorState < 0) {
-        av_strerror(errorState, errorBuf, 1024);
-        LOGE("Couldn't open file %s: %d(%s)", url, errorState, errorBuf);
-        ff_notify_msg(errorState, "FFMPEG Player Error: Can not open video file");
-        return 0L;
-    }
-    //查看文件视频流信息
-    errorState = avformat_find_stream_info(formatCtx, NULL);
-    if (errorState < 0) {
-        ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
-        return 0L;
-    }
+
     //查找视频流对应解码器
     video_stream_index = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
                                              0);
-    /*for (int i = 0; i < formatCtx->nb_streams; ++i) {
-        if (formatCtx->streams[i]->codecpar->codec_type == AVMEDIA_TYPE_VIDEO) {
-            video_stream_index = i;
-            break;
-        }
-    }*/
 
     if (video_stream_index == -1) {
-        LOGD("FFMPEG Player : Can not find video codec");
+        LOGD("FFMPEG Player : Can not find video stream");
         return 0L;
     }
 
