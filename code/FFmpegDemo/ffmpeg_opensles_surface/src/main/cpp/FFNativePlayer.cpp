@@ -78,6 +78,7 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
         return 0L;
     }
     jlong duration = video->decode(playerCtx, url);
+    audio->decode(url);
     return duration;
 }
 
@@ -86,8 +87,12 @@ void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
     playerCtx->display = ANativeWindow_fromSurface(pEnv, surface);
 }
 
-static void ff_do_render(void *playerCtx, void *out) {
+static void ff_do_video_render(void *playerCtx, void *out) {
     video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
+}
+
+static void ff_do_audio_render(void *playerCtx, void *out) {
+    audio->render();
 }
 
 void FFNativePlayer::ff_start() {
@@ -96,7 +101,7 @@ void FFNativePlayer::ff_start() {
     }
 //    video->render((playerCtx), 0);
 
-    ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_render, playerCtx, NULL);
+    ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_video_render, playerCtx, NULL);
 }
 
 void FFNativePlayer::ff_destroy() {

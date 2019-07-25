@@ -6,9 +6,10 @@
 #define FFMPEGDEMO_FFMPEGAUDIO_H
 
 #include <queue>
-#include<vector
+#include<vector>
 
 extern "C" {
+#include <pthread.h>
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 #include <SLES/OpenSLES_Android.h>
@@ -21,20 +22,20 @@ extern "C" {
 
 class FFMpegAudio {
 public:
-
-    AVCodec *avCodec;
-
-    AVCodecContext *avCodecCtx;
-    int audio_stream_index;
-
+    NativePlayerContext *ctx;
+    pthread_mutex_t queue_mutex;//队列同步锁
+    pthread_cond_t queue_cond;//锁条件变量
     std::vector<AVPacket*> queue;//数据包队列
+    //-------FF解码所需参数begin
+    AVCodec *avCodec;
+    AVCodecContext *avCodecCtx;
+
+    int audio_stream_index;
 
     SwrContext *swrContext;//重采样结构体
     uint8_t *out_buffer;
     int out_channer_num;
-
-    //音频当前播放的时间戳
-    double audio_time;
+    //-------FF解码所需参数 end
     AVRational time_base;
 
     /**
@@ -68,15 +69,19 @@ public:
 
     void create(NativePlayerContext *ctx);
 
-    jlong decode(NativePlayerContext *ctx, const char *url);
+    jlong decode( const char *url);
 
-    void render(NativePlayerContext *ctx, jlong video_time);
+    void render();
 
-    void release(NativePlayerContext *ctx);
+    void release();
 
-    void reset(NativePlayerContext *ctx);
+    void reset();
 
-    void destroy(NativePlayerContext *ctx);
+    void destroy();
+
+    void pop(AVPacket *pPacket);
+
+    void push(AVPacket *pPacket);
 
 private:
 
