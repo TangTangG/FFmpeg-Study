@@ -8,10 +8,6 @@
 #define FF_THREAD_POOL_CORE 8
 #define FF_THREAD_POOL_QUEUE 64
 
-//error define ----begin
-
-//error define ----end
-
 static bool ff_inited = false;
 FFMpegVideo *video;
 FFMpegAudio *audio;
@@ -30,6 +26,7 @@ void FFNativePlayer::ff_register() {
 void FFNativePlayer::ff_uninit() {
     avformat_network_deinit();
 }
+
 /**
  * 负责ff以及其他消息中心的注册操作
  */
@@ -47,17 +44,59 @@ void FFNativePlayer::ff_init(JNIEnv *env) {
  */
 void FFNativePlayer::ff_prepare() {
 
-    video = (FFMpegVideo *) av_malloc(sizeof(FFMpegVideo));
-    audio = (FFMpegAudio *) av_malloc(sizeof(FFMpegAudio));
+    video = new FFMpegVideo();
+    audio = new FFMpegAudio();
 
     playerCtx = new NativePlayerContext();
     playerCtx->formatCtx = avformat_alloc_context();
     playerCtx->debug = true;
 
     //分配线程池
-    playerCtx->threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE,FF_THREAD_POOL_QUEUE,0);
+    playerCtx->threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE, FF_THREAD_POOL_QUEUE, 0);
     video->create(playerCtx);
     //分配解码音频和视频的queue
+}
+
+/**
+ * 准备数据流 -------- 解码
+ */
+jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
+    char errorBuf[] = {0};
+    int errorState;
+    AVFormatContext *formatCtx = playerCtx->formatCtx;
+    errorState = avformat_open_input(&formatCtx, url, NULL, NULL);
+    if (errorState < 0) {
+        av_strerror(errorState, errorBuf, 1024);
+        LOGE("Couldn't open file %s: %d(%s)", url, errorState, errorBuf);
+        ff_notify_msg(errorState, "FFMPEG Player Error: Can not open video file");
+        return 0L;
+    }
+    //查看文件视频流信息
+    errorState = avformat_find_stream_info(formatCtx, NULL);
+    if (errorState < 0) {
+        ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
+        return 0L;
+    }
+    jlong duration = video->decode(playerCtx, url);
+    return duration;
+}
+
+void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
+
+    playerCtx->display = ANativeWindow_fromSurface(pEnv, surface);
+}
+
+static void ff_do_render(void *playerCtx, void *out) {
+    video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
+}
+
+void FFNativePlayer::ff_start() {
+    if (!playerCheck()) {
+        return;
+    }
+//    video->render((playerCtx), 0);
+
+    ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_render, playerCtx, NULL);
 }
 
 void FFNativePlayer::ff_destroy() {
@@ -71,19 +110,6 @@ void FFNativePlayer::ff_destroy() {
 
 int FFNativePlayer::ff_state() {
     return 0;
-}
-
-static void ff_do_render(void* playerCtx,void* out){
-    video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
-}
-
-void FFNativePlayer::ff_start() {
-    if (!playerCheck()) {
-        return;
-    }
-//    video->render((playerCtx), 0);
-
-    ff_threadpool_add(playerCtx->threadPoolCtx,ff_do_render,playerCtx,NULL);
 }
 
 /**
@@ -114,35 +140,6 @@ void FFNativePlayer::ff_rest(JNIEnv *pEnv) {
 
 }
 
-/**
- * 准备数据流 -------- 解码
- */
-jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
-    char errorBuf[] = {0};
-    int errorState;
-    AVFormatContext *formatCtx = playerCtx->formatCtx;
-    errorState = avformat_open_input(&formatCtx, url, NULL, NULL);
-    if (errorState < 0) {
-        av_strerror(errorState, errorBuf, 1024);
-        LOGE("Couldn't open file %s: %d(%s)", url, errorState, errorBuf);
-        ff_notify_msg(errorState, "FFMPEG Player Error: Can not open video file");
-        return 0L;
-    }
-    //查看文件视频流信息
-    errorState = avformat_find_stream_info(formatCtx, NULL);
-    if (errorState < 0) {
-        ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
-        return 0L;
-    }
-    jlong duration = video->decode(playerCtx, url);
-    return duration;
-}
-
-void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
-
-    playerCtx->display =  ANativeWindow_fromSurface(pEnv,surface);
-}
-
 jlong FFNativePlayer::ff_get_current_pos(JNIEnv *pEnv) {
     return 0;
 }
@@ -151,14 +148,14 @@ bool FFNativePlayer::playerCheck() {
     if (!ff_inited) {
         return false;
     }
-    /*if (avCodecCtx == 0) {
+    if (playerCtx == 0) {
         ff_notify_msg(1, "initial player first.");
         return false;
     }
-    if (pNativeWindow == 0){
+    if (playerCtx->display == 0) {
         ff_notify_msg(1, "attach view.");
         return false;
-    }*/
+    }
     return true;
 }
 

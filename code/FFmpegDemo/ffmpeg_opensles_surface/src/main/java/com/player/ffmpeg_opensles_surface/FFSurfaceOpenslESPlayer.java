@@ -38,9 +38,8 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
                 if (surface == null || !surface.isValid()) {
                     return;
                 }
-                Log.d("tang ", "surfaceCreated: ");
+                attachFFView(surface);
                 if (!TextUtils.isEmpty(playUrl)) {
-                    attachFFView(surface);
                     doFFPlay(playUrl);
                 }
             }
@@ -61,8 +60,8 @@ public class FFSurfaceOpenslESPlayer extends BasePlayer {
 
     @Override
     public boolean play(String url) {
-        this.playUrl = url;
-        doFFPrepare();
+        this.playUrl = url;doFFPrepare();
+
         return false;
     }
 

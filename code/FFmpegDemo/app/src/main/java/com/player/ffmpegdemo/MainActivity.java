@@ -15,7 +15,7 @@ import java.io.File;
 
 public class MainActivity extends AppCompatActivity {
 
-
+    private SimplePlayerIface ffPlayer = null;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -33,19 +33,21 @@ public class MainActivity extends AppCompatActivity {
         final String path = new File(Environment.getExternalStorageDirectory(), "demo.mp4").getAbsolutePath();
 
 //        SimplePlayerIface ffPlayer = new FFDecodePlayer();
-        SimplePlayerIface ffPlayer = new FFSurfaceOpenslESPlayer(MainActivity.this);
-        View view = ffPlayer.init(null);
-        ViewGroup container = findViewById(R.id.surface_container);
-        int height = container.getMeasuredHeight();
-        int width = container.getMeasuredWidth();
-        if (width >= height) {
-            width = 16 * height / 9;
-        } else {
-            height = width * 9 / 16;
+        if (ffPlayer == null) {
+            ffPlayer = new FFSurfaceOpenslESPlayer(MainActivity.this);
+            View view = ffPlayer.init(null);
+            ViewGroup container = findViewById(R.id.surface_container);
+            int height = container.getMeasuredHeight();
+            int width = container.getMeasuredWidth();
+            if (width >= height) {
+                width = 16 * height / 9;
+            } else {
+                height = width * 9 / 16;
+            }
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
+            view.setLayoutParams(params);
+            container.addView(view);
         }
-        FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(width, height);
-        view.setLayoutParams(params);
-        container.addView(view);
         ffPlayer.play(path);
     }
 

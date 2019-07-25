@@ -9,19 +9,19 @@ AVCodec *avCodec;
 
 AVCodecContext *avCodecCtx;
 int video_stream_index;
+AVPacket *flush_pkt;
 
 //for display
 SwsContext *swsContext;
 ANativeWindow *pNativeWindow;
 AVFrame *avFrame;
-AVFrame *rgb_frame;
 
+AVFrame *rgb_frame;
 //error define ----begin
 char errorBuf[] = {0};
 int errorState;
-//error define ----end
 
-AVPacket *flush_pkt;
+//error define ----end
 
 void FFMpegVideo::create(NativePlayerContext *ctx) {
     avFrame = av_frame_alloc();
