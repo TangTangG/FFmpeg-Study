@@ -21,6 +21,7 @@ add_library( # Sets the name of the library.
         # Provides a relative path to your source file(s).
         src/main/cpp/native-lib.cpp
         src/main/cpp/util/FFThreadPool.cpp
+        src/main/cpp/util/FFLockedQueue.cpp
         src/main/cpp/util/FF_Log.cpp
         src/main/cpp/Data.cpp
         src/main/cpp/FFMpegVideo.cpp
@@ -112,4 +113,5 @@ target_link_libraries( # Specifies the target library.
         swresample-3
         avutil-56
         ${log-lib}
-        android)
+        android
+        OpenSLES)

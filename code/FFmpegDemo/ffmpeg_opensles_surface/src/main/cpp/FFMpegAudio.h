@@ -5,27 +5,26 @@
 #ifndef FFMPEGDEMO_FFMPEGAUDIO_H
 #define FFMPEGDEMO_FFMPEGAUDIO_H
 
-#include <queue>
-#include<vector>
-
+#include <SLES/OpenSLES_Android.h>
 extern "C" {
 #include <pthread.h>
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
-#include <SLES/OpenSLES_Android.h>
 #include <libswresample/swresample.h>
 
 #include "Data.h"
 #include "util/FF_Log.h"
+#include "util/FFLockedQueue.h"
 
 }
 
 class FFMpegAudio {
 public:
+
     NativePlayerContext *ctx;
-    pthread_mutex_t queue_mutex;//队列同步锁
-    pthread_cond_t queue_cond;//锁条件变量
-    std::vector<AVPacket*> queue;//数据包队列
+
+    FFLockedQueue<AVPacket> *queue;
+
     //-------FF解码所需参数begin
     AVCodec *avCodec;
     AVCodecContext *avCodecCtx;

@@ -13,18 +13,39 @@ extern "C" {
 #include <unistd.h>
 #include "Data.h"
 #include "util/FF_Log.h"
+#include "util/FFLockedQueue.h"
 
 }
 
 
 class FFMpegVideo {
 public:
+
+    AVRational time_base;
+
+    FFLockedQueue<AVPacket> *queue;
+    NativePlayerContext *ctx;
+    //video decoder
+    AVCodec *avCodec;
+
+    AVCodecContext *avCodecCtx;
+    int video_stream_index;
+    AVPacket *flush_pkt;
+
+//for display
+    SwsContext *swsContext;
+    ANativeWindow *pNativeWindow;
+    AVFrame *avFrame;
+
+    AVFrame *rgb_frame;
+
     void create(NativePlayerContext *ctx);
-    jlong decode(NativePlayerContext *ctx,const char *url);
-    void render(NativePlayerContext *ctx,jlong audio_time);
-    void release(NativePlayerContext *ctx);
-    void reset(NativePlayerContext *ctx);
-    void destroy(NativePlayerContext *ctx);
+    jlong decode(const char *url);
+    void render(jlong audio_time);
+    void release();
+    void reset();
+    void destroy();
+
 };
 
 

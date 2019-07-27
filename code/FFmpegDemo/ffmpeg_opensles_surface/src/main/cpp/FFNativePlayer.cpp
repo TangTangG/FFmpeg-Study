@@ -50,11 +50,12 @@ void FFNativePlayer::ff_prepare() {
     playerCtx = new NativePlayerContext();
     playerCtx->formatCtx = avformat_alloc_context();
     playerCtx->debug = true;
+    playerCtx->play_state = PLAYER_STATE_PLAY;
 
     //分配线程池
     playerCtx->threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE, FF_THREAD_POOL_QUEUE, 0);
     video->create(playerCtx);
-    //分配解码音频和视频的queue
+//    audio->create(playerCtx);
 }
 
 /**
@@ -77,8 +78,8 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
         ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
         return 0L;
     }
-    jlong duration = video->decode(playerCtx, url);
-    audio->decode(url);
+    jlong duration = video->decode(url);
+//    audio->decode(url);
     return duration;
 }
 
@@ -88,11 +89,11 @@ void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
 }
 
 static void ff_do_video_render(void *playerCtx, void *out) {
-    video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
+    video->render(0);
 }
 
 static void ff_do_audio_render(void *playerCtx, void *out) {
-    audio->render();
+//    audio->render();
 }
 
 void FFNativePlayer::ff_start() {
@@ -102,14 +103,19 @@ void FFNativePlayer::ff_start() {
 //    video->render((playerCtx), 0);
 
     ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_video_render, playerCtx, NULL);
+    ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_audio_render, playerCtx, NULL);
 }
 
 void FFNativePlayer::ff_destroy() {
     ff_uninit();
+    video->release();
+//    audio->release();
     delete video;
     video = NULL;
     delete audio;
     audio = NULL;
+    delete playerCtx;
+    playerCtx = NULL;
 
 }
 

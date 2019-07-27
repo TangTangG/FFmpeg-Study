@@ -29,7 +29,7 @@ int decode2PCM(FFMpegAudio *audio);
 bool FFMpegAudio::invalidResult() {
     bool b = SL_RESULT_SUCCESS != result;
     if (!b) {
-        LOGE(result + "");
+        LOGE("");
     }
     return b;
 }
@@ -46,17 +46,16 @@ void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
         LOGE("当前帧声音时间%f   播放时间%f", time, audio->ctx->audio_time);
 
         (*bq)->Enqueue(bq, audio->out_buffer, data_size);
-        LOGE("待播放 %d ", audio->queue.size());
+        LOGE("待播放 %d ", audio->queue->size());
     }
 }
 
 int decode2PCM(FFMpegAudio *audio) {
-    std::vector<AVPacket *> &packet = audio->queue;
     AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
     AVFrame *avFrame = av_frame_alloc();
     int data_size;
     int result;
-    while (1) {
+    while (audio->ctx->play_state > 0) {
         data_size = 0;
         //可能阻塞
         audio->pop(avPacket);
@@ -84,7 +83,7 @@ int decode2PCM(FFMpegAudio *audio) {
         swr_convert(audio->swrContext, &(audio->out_buffer), DEFAULT_SAMPLING_RATE * 2,
                     (const uint8_t **) avFrame->data, avFrame->nb_samples);
         data_size = av_samples_get_buffer_size(NULL, audio->out_channer_num, avFrame->nb_samples,
-                                          AV_SAMPLE_FMT_S16, 1);
+                                               AV_SAMPLE_FMT_S16, 1);
         break;
     }
     av_free(avPacket);
@@ -94,8 +93,8 @@ int decode2PCM(FFMpegAudio *audio) {
 
 void FFMpegAudio::create(NativePlayerContext *ctx) {
     //初始化用于队列同步的锁
-    pthread_mutex_init(&queue_mutex, NULL);
-    pthread_cond_init(&queue_cond, NULL);
+    queue = new FFLockedQueue<AVPacket>();
+    queue->init();
     createSlEs(ctx);
     createFF(ctx);
 }
@@ -171,10 +170,9 @@ void FFMpegAudio::reset() {
 }
 
 void FFMpegAudio::destroy() {
-
-    pthread_cond_destroy(&queue_cond);
-    pthread_mutex_destroy(&queue_mutex);
-
+    queue->free();
+    delete queue;
+    queue = NULL;
 }
 
 void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
@@ -189,7 +187,7 @@ void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
         return;
     }
     //通过接口对象创建具体的对象 ---> SL_IID_ENGINE 标识为创建那种对象
-    result = pEngineIface->GetInterface(engineIface, SL_IID_ENGINE, &engineIface);
+    result = pEngineIface->GetInterface(engineIface, SL_IID_ENGINE, &engineObj);
     if (invalidResult()) {
         return;
     }
@@ -250,8 +248,8 @@ void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
     //获取播放状态接口
     (*playerObj)->SetPlayState(playerObj, SL_PLAYSTATE_PLAYING);
     //启用回调函数
-//    playerBQCallback(playerBufferQueue, this);
-    (*playerBufferQueue)->Enqueue(playerBufferQueue, this, 1);
+    playerBQCallback(playerBufferQueue, this);
+//    (*playerBufferQueue)->Enqueue(playerBufferQueue, this, 1);
 }
 
 void FFMpegAudio::createFF(NativePlayerContext *ctx) {
@@ -261,39 +259,21 @@ void FFMpegAudio::createFF(NativePlayerContext *ctx) {
     out_buffer = static_cast<uint8_t *>(av_mallocz(DEFAULT_SAMPLING_RATE * 2));
 }
 
-void FFMpegAudio::pop(AVPacket *pPacket) {
-    pthread_mutex_lock(&queue_mutex);
-    while (1) {
-        if (!queue.empty()) {
-            //返回正数表示克隆失败，0表示成功
-            if (av_packet_ref(pPacket, queue.front())) {
-                break;
-            }
-            //取成功之后，将旧元素从队列中移除，并释放其内存
-            AVPacket *&remove = queue.front();
-            queue.erase(queue.begin());
-            av_free(remove);
-        } else {
-            //没有数据等待
-            LOGD("等待加入新的packet");
-            pthread_cond_wait(&queue_cond, &queue_mutex);
-        }
+static int audio_queue_callback(AVPacket *dst, AVPacket *src) {
+    if (src == NULL) {
+        av_free(dst);
+        return 0;
     }
-    pthread_mutex_unlock(&queue_mutex);
+    return av_packet_ref(dst, src);
+}
+
+void FFMpegAudio::pop(AVPacket *pPacket) {
+    queue->pop(pPacket, audio_queue_callback);
 }
 
 void FFMpegAudio::push(AVPacket *pPacket) {
     AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
-    if (av_packet_ref(avPacket, pPacket)) {
-        //数据拷贝失败，无法加入队列
-        return;
-    }
-    pthread_mutex_lock(&queue_mutex);
-    queue.push_back(avPacket);
-    //添加队列成功之后，发出信号
-    //此时可能pop正在等待
-    pthread_cond_signal(&queue_cond);
-    pthread_mutex_unlock(&queue_mutex);
+    queue->push(pPacket, avPacket, audio_queue_callback);
 }
 
 

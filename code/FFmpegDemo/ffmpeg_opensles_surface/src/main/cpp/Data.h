@@ -5,6 +5,14 @@
 #ifndef FFMPEGDEMO_DATA_H
 #define FFMPEGDEMO_DATA_H
 
+#define PLAYER_STATE_PALYING 1
+#define PLAYER_STATE_PLAY 2
+#define PLAYER_STATE_INITIAL -2
+#define PLAYER_STATE_IDE -1
+#define PLAYER_STATE_PAUSE -3
+#define PLAYER_STATE_STOP -4
+#define PLAYER_STATE_DESTORY -5
+
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
@@ -13,6 +21,8 @@
 #include <android/native_window_jni.h>
 
 typedef struct NativePlayerContext {
+
+    int play_state;
 
     void *display;
 

@@ -10,6 +10,7 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+
 #include <libavutil/log.h>
 
 #include <android/native_window_jni.h>
