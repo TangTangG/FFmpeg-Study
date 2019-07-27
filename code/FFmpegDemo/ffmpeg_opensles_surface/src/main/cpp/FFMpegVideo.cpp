@@ -11,7 +11,7 @@ int errorState;
 //error define ----end
 
 
-static int audio_queue_callback(AVPacket *dst, AVPacket *src) {
+static int video_queue_callback(AVPacket *dst, AVPacket *src) {
     if (src == NULL) {
         av_free(dst);
         return 0;
@@ -21,12 +21,11 @@ static int audio_queue_callback(AVPacket *dst, AVPacket *src) {
 
 void pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
     LOGD("tang获取一个视频包");
-    pVideo->queue->pop(pPacket, audio_queue_callback);
+    pVideo->queue->pop(pPacket, video_queue_callback);
 }
 
-void push(FFMpegVideo *pVideo, AVPacket *pPacket) {
-    AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
-    pVideo->queue->push(pPacket, avPacket, audio_queue_callback);
+void push(FFMpegVideo *pVideo, AVPacket *pPacket, AVPacket *avPacket) {
+    pVideo->queue->push(pPacket, avPacket, video_queue_callback);
 }
 
 static void start_render_notify(void *pVideo, void *out) {
@@ -201,7 +200,9 @@ void FFMpegVideo::render(NativePlayerContext *ctx,jlong audio_time) {
                 }
             } else {
 //                LOGD("tang push 视频包");
-                push(this, flush_pkt);
+                AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
+
+                push(this, flush_pkt, avPacket);
                 av_packet_unref(flush_pkt);
             }
         }
