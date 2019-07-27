@@ -31,7 +31,7 @@ void push(FFMpegVideo *pVideo, AVPacket *pPacket) {
 
 static void start_render_notify(void *pVideo, void *out) {
     FFMpegVideo *video = static_cast<FFMpegVideo *>(pVideo);
-    AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
+    AVPacket *avPacket = video->render_pkt;
     int result;
     int height;
     ANativeWindow_Buffer nativeWindow_buffer;
@@ -91,6 +91,7 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     queue = new FFLockedQueue<AVPacket>();
     queue->init();
     flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
+    render_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     av_init_packet(flush_pkt);
 }
 

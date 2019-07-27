@@ -30,6 +30,7 @@ public:
     AVCodecContext *avCodecCtx;
     int video_stream_index;
     AVPacket *flush_pkt;
+    AVPacket *render_pkt;
 
 //for display
     SwsContext *swsContext;
