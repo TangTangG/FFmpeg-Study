@@ -68,9 +68,9 @@ public:
 
     void create(NativePlayerContext *ctx);
 
-    jlong decode( const char *url);
+    jlong decode(NativePlayerContext *ctx, const char *url);
 
-    void render();
+    void render(NativePlayerContext *pContext);
 
     void release();
 

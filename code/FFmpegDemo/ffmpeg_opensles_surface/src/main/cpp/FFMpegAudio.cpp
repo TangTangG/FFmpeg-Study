@@ -99,7 +99,7 @@ void FFMpegAudio::create(NativePlayerContext *ctx) {
     createFF(ctx);
 }
 
-jlong FFMpegAudio::decode(const char *url) {
+jlong FFMpegAudio::decode(NativePlayerContext *ctx,const char *url) {
     //---------找到对应解码器
     AVFormatContext *formatCtx = ctx->formatCtx;
     audio_stream_index = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
@@ -131,7 +131,7 @@ jlong FFMpegAudio::decode(const char *url) {
     return out_channer_num;
 }
 
-void FFMpegAudio::render() {
+void FFMpegAudio::render(NativePlayerContext *ctx) {
     //解码stream获取avpacket
     int ret;
     //开始取帧 渲染流程

@@ -14,7 +14,6 @@ extern "C" {
 #include "Data.h"
 #include "util/FF_Log.h"
 #include "util/FFLockedQueue.h"
-
 }
 
 
@@ -40,8 +39,8 @@ public:
     AVFrame *rgb_frame;
 
     void create(NativePlayerContext *ctx);
-    jlong decode(const char *url);
-    void render(jlong audio_time);
+    jlong decode(NativePlayerContext *ctx, const char *string);
+    void render(NativePlayerContext *ctx,jlong audio_time);
     void release();
     void reset();
     void destroy();

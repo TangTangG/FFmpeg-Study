@@ -5,13 +5,13 @@
 #ifndef FFMPEGDEMO_FFLOCKQUEUE_H
 #define FFMPEGDEMO_FFLOCKQUEUE_H
 
+#include <libavutil/mem.h>
+
 #define QUEUE_STATE_RUNNING 1
 #define QUEUE_STATE_STOP 0
 extern "C++" {
 #include<vector>
 #include <pthread.h>
-
-
 
 template <class T>
 class FFLockedQueue {
@@ -51,7 +51,7 @@ void FFLockedQueue<T>::pop(T *dst, int (*callback)(T *, T *)) {
             //取成功之后，将旧元素从队列中移除，并释放其内存
             T *&remove = queue.front();
             queue.erase(queue.begin());
-            callback(dst,NULL);
+            av_free(remove);
         } else {
             pthread_cond_wait(&queue_cond, &queue_mutex);
         }

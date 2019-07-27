@@ -78,8 +78,8 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
         ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
         return 0L;
     }
-    jlong duration = video->decode(url);
-//    audio->decode(url);
+    jlong duration = video->decode(playerCtx, url);
+//    audio->decode(playerCtx,url);
     return duration;
 }
 
@@ -89,11 +89,11 @@ void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
 }
 
 static void ff_do_video_render(void *playerCtx, void *out) {
-    video->render(0);
+    video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
 }
 
 static void ff_do_audio_render(void *playerCtx, void *out) {
-//    audio->render();
+//    audio->render(static_cast<NativePlayerContext *>(playerCtx));
 }
 
 void FFNativePlayer::ff_start() {

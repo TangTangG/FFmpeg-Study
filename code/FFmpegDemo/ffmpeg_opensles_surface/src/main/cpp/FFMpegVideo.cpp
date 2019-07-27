@@ -20,6 +20,7 @@ static int audio_queue_callback(AVPacket *dst, AVPacket *src) {
 }
 
 void pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
+    LOGD("tang获取一个视频包");
     pVideo->queue->pop(pPacket, audio_queue_callback);
 }
 
@@ -77,7 +78,6 @@ static void start_render_notify(void *pVideo, void *out) {
             }
             ANativeWindow_unlockAndPost(video->pNativeWindow);
         }
-        break;
     }
     av_free(avPacket);
     av_frame_free(&avFrame);
@@ -94,7 +94,7 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     av_init_packet(flush_pkt);
 }
 
-jlong FFMpegVideo::decode(const char *url) {
+jlong FFMpegVideo::decode(NativePlayerContext *ctx,const char *url) {
     AVFormatContext *formatCtx = ctx->formatCtx;
 
     //查找视频流对应解码器
@@ -144,7 +144,7 @@ jlong FFMpegVideo::decode(const char *url) {
     return formatCtx->duration / AV_TIME_BASE;
 }
 
-void FFMpegVideo::render(jlong audio_time) {
+void FFMpegVideo::render(NativePlayerContext *ctx,jlong audio_time) {
     if (pNativeWindow == 0) {
         pNativeWindow = static_cast<ANativeWindow *>(ctx->display);
     }
@@ -199,6 +199,7 @@ void FFMpegVideo::render(jlong audio_time) {
                     usleep(10000);
                 }
             } else {
+//                LOGD("tang push 视频包");
                 push(this, flush_pkt);
                 av_packet_unref(flush_pkt);
             }
