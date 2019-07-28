@@ -23,7 +23,7 @@ public:
     int state;
 
     void init();
-    void pop(T *dst, int (*callback)(T *dst, T *src));
+    T* pop(T *dst, int (*callback)(T *dst, T *src));
     void push(T *src,T *dst, int (*callback)(T *dst, T *src));
     void stop();
     void start();
@@ -40,30 +40,34 @@ void FFLockedQueue<T>::init() {
 }
 
 template<class T>
-void FFLockedQueue<T>::pop(T *dst, int (*callback)(T *, T *)) {
+T* FFLockedQueue<T>::pop(T *dst, int (*callback)(T *, T *)) {
+    T *re = dst;
     pthread_mutex_lock(&queue_mutex);
     while (state) {
         if (!queue.empty()) {
             //返回正数表示克隆失败，0表示成功
-            if (callback(dst, queue.front())) {
+            re = queue.front();
+            break;
+            /*if (callback(dst, queue.front())) {
                 break;
             }
             //取成功之后，将旧元素从队列中移除，并释放其内存
             T *&remove = queue.front();
             queue.erase(queue.begin());
-            av_free(remove);
+            av_free(remove);*/
         } else {
             pthread_cond_wait(&queue_cond, &queue_mutex);
         }
     }
     pthread_mutex_unlock(&queue_mutex);
+    return re;
 }
 
 template<class T>
 void FFLockedQueue<T>::push(T *src, T *dst, int (*callback)(T *, T *)) {
-    if (callback(dst, src)) {
+    /*if (callback(dst, src)) {
         return;
-    }
+    }*/
     pthread_mutex_lock(&queue_mutex);
     queue.push_back(dst);
     //添加队列成功之后，发出信号

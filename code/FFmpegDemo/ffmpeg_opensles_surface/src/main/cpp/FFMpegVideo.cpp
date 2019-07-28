@@ -20,8 +20,14 @@ static int video_queue_callback(AVPacket *dst, AVPacket *src) {
 }
 
 void pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
-    LOGD("tang获取一个视频包");
-    pVideo->queue->pop(pPacket, video_queue_callback);
+
+    FFLockedQueue<AVPacket> *queue = pVideo->queue;
+    AVPacket *avPacket = queue->pop(pPacket, video_queue_callback);
+    if (!av_packet_ref(pPacket,avPacket)){
+        queue->queue.erase(queue->queue.begin());
+        av_free(avPacket);
+        LOGD("tang获取一个视频包 %lld",pPacket->pts);
+    }
 }
 
 void push(FFMpegVideo *pVideo, AVPacket *pPacket, AVPacket *avPacket) {
@@ -77,9 +83,11 @@ static void start_render_notify(void *pVideo, void *out) {
             }
             ANativeWindow_unlockAndPost(video->pNativeWindow);
         }
+        av_packet_unref(avPacket);
     }
     av_free(avPacket);
     av_frame_free(&avFrame);
+    video->release();
 }
 
 
@@ -92,6 +100,7 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     render_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     av_init_packet(flush_pkt);
+    av_init_packet(render_pkt);
 }
 
 jlong FFMpegVideo::decode(NativePlayerContext *ctx,const char *url) {
@@ -199,15 +208,17 @@ void FFMpegVideo::render(NativePlayerContext *ctx,jlong audio_time) {
                     usleep(10000);
                 }
             } else {
-//                LOGD("tang push 视频包");
-                AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
-
-                push(this, flush_pkt, avPacket);
-                av_packet_unref(flush_pkt);
+                LOGD("tang push 视频包 111111111111");
+                AVPacket *avPacket = (AVPacket *)(av_malloc(sizeof(AVPacket)));
+                LOGD("tang push 视频包 222222222222");
+                if (!av_packet_ref(avPacket,flush_pkt)){
+                    LOGD("tang push 视频包 3333333333333");
+                    push(this, flush_pkt, avPacket);
+                }
             }
         }
+        av_packet_unref(flush_pkt);
     }
-    release();
 }
 
 void FFMpegVideo::release() {
