@@ -21,7 +21,7 @@ extern "C" {
 class FFMpegAudio {
 public:
 
-    NativePlayerContext *ctx;
+    NativePlayerContext *pCtx;
 
     FFLockedQueue<AVPacket> *queue;
 
@@ -68,19 +68,15 @@ public:
 
     void create(NativePlayerContext *ctx);
 
-    jlong decode(NativePlayerContext *ctx, const char *url);
+    jlong decode(const char *url);
 
-    void render(NativePlayerContext *pContext);
+    void render();
 
     void release();
 
     void reset();
 
     void destroy();
-
-    void pop(AVPacket *pPacket);
-
-    void push(AVPacket *pPacket);
 
 private:
 

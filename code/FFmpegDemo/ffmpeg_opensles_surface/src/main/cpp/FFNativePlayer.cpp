@@ -51,11 +51,10 @@ void FFNativePlayer::ff_prepare() {
     playerCtx.formatCtx = avformat_alloc_context();
     playerCtx.debug = true;
     playerCtx.play_state = PLAYER_STATE_PLAY;
-
     //分配线程池
     playerCtx.threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE, FF_THREAD_POOL_QUEUE, 0);
     video->create(&playerCtx);
-//    audio->create(playerCtx);
+    audio->create(&playerCtx);
 }
 
 /**
@@ -79,7 +78,7 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
         return 0L;
     }
     jlong duration = video->decode( url);
-//    audio->decode(playerCtx,url);
+    audio->decode(url);
     return duration;
 }
 
@@ -93,14 +92,13 @@ static void ff_do_video_render(void *playerCtx, void *out) {
 }
 
 static void ff_do_audio_render(void *playerCtx, void *out) {
-//    audio->render(static_cast<NativePlayerContext *>(playerCtx));
+    audio->render();
 }
 
 void FFNativePlayer::ff_start() {
     if (!playerCheck()) {
         return;
     }
-//    video->render((playerCtx), 0);
 
     ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_video_render, &playerCtx, NULL);
     ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_audio_render, &playerCtx, NULL);
@@ -109,14 +107,11 @@ void FFNativePlayer::ff_start() {
 void FFNativePlayer::ff_destroy() {
     ff_uninit();
     video->release();
-//    audio->release();
+    audio->release();
     delete video;
     video = NULL;
     delete audio;
     audio = NULL;
-//    delete playerCtx;
-//    playerCtx = NULL;
-
 }
 
 int FFNativePlayer::ff_state() {

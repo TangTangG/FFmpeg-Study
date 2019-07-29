@@ -34,6 +34,27 @@ bool FFMpegAudio::invalidResult() {
     return b;
 }
 
+bool pop(FFMpegAudio *audio ,AVPacket *pPacket) {
+    AVPacket *avPacket = audio->queue->pop();
+    if (avPacket == NULL) {
+        return false;
+    }
+    if (!av_packet_ref(pPacket, avPacket)) {
+        av_packet_unref(avPacket);
+        AVPacket *remove = audio->queue->releaseHead();
+        av_free(remove);
+    }
+    return true;
+}
+
+void push(FFMpegAudio *audio ,AVPacket *pPacket) {
+    AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
+    if (!av_packet_ref(avPacket, pPacket)) {
+        audio->queue->push( avPacket);
+    }
+
+}
+
 //音频缓存回调函数
 void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
     //得到pcm数据
@@ -42,8 +63,8 @@ void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
     if (data_size > 0) {
         //该帧所需要时间 = 采样字节/采样率
         double time = data_size / (DEFAULT_SAMPLING_RATE * 2 * 2);
-        audio->ctx->audio_time = time + audio->ctx->audio_time;
-        LOGE("当前帧声音时间%f   播放时间%f", time, audio->ctx->audio_time);
+        audio->pCtx->audio_time = time + audio->pCtx->audio_time;
+        LOGE("当前帧声音时间%f   播放时间%f", time, audio->pCtx->audio_time);
 
         (*bq)->Enqueue(bq, audio->out_buffer, data_size);
         LOGE("待播放 %d ", audio->queue->size());
@@ -55,13 +76,15 @@ int decode2PCM(FFMpegAudio *audio) {
     AVFrame *avFrame = av_frame_alloc();
     int data_size;
     int result;
-    while (audio->ctx->play_state > 0) {
+    while (audio->pCtx->play_state > 0) {
         data_size = 0;
-        //可能阻塞
-        audio->pop(avPacket);
+        if (!pop(audio, avPacket)) {
+            usleep(16000);
+            break;
+        }
         if (avPacket->pts != AV_NOPTS_VALUE) {
             //qts --> double 校正时间
-            audio->ctx->audio_time = av_q2d(audio->time_base) * avPacket->pts;
+            audio->pCtx->audio_time = av_q2d(audio->time_base) * avPacket->pts;
         }
         //解码
         result = avcodec_send_packet(audio->avCodecCtx, avPacket);
@@ -95,19 +118,20 @@ void FFMpegAudio::create(NativePlayerContext *ctx) {
     //初始化用于队列同步的锁
     queue = new FFLockedQueue<AVPacket>();
     queue->init();
+    pCtx = ctx;
     createSlEs(ctx);
     createFF(ctx);
 }
 
-jlong FFMpegAudio::decode(NativePlayerContext *ctx,const char *url) {
+jlong FFMpegAudio::decode(const char *url) {
     //---------找到对应解码器
-    AVFormatContext *formatCtx = ctx->formatCtx;
+    AVFormatContext *formatCtx = pCtx->formatCtx;
     audio_stream_index = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
     if (audio_stream_index == -1) {
         ff_notify_msg(1, "can not find audio stream.");
         return 0L;
     }
-    time_base = ctx->formatCtx->streams[audio_stream_index]->time_base;
+    time_base = pCtx->formatCtx->streams[audio_stream_index]->time_base;
     //初始化视频流编码器上下文
     AVCodecParameters *codecpar = formatCtx->streams[audio_stream_index]->codecpar;
     avCodec = avcodec_find_decoder(codecpar->codec_id);
@@ -118,7 +142,7 @@ jlong FFMpegAudio::decode(NativePlayerContext *ctx,const char *url) {
     uint64_t out_ch_layout = AV_CH_LAYOUT_STEREO;
     //输出采样位数 16
     enum AVSampleFormat out_format = AV_SAMPLE_FMT_S16;
-
+    //输入和输出的采样率要一致
     int out_sample_rate = avCodecCtx->sample_rate;
     swr_alloc_set_opts(swrContext, out_ch_layout, out_format, out_sample_rate,
                        avCodecCtx->channel_layout, avCodecCtx->sample_fmt, out_sample_rate, 0,
@@ -131,16 +155,16 @@ jlong FFMpegAudio::decode(NativePlayerContext *ctx,const char *url) {
     return out_channer_num;
 }
 
-void FFMpegAudio::render(NativePlayerContext *ctx) {
+void FFMpegAudio::render() {
     //解码stream获取avpacket
     int ret;
     //开始取帧 渲染流程
     AVPacket *flush_pkt = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
 
-    while (av_read_frame(ctx->formatCtx, flush_pkt) >= 0) {
+    while (av_read_frame(pCtx->formatCtx, flush_pkt) >= 0) {
         if (flush_pkt->stream_index == audio_stream_index) {
             //解码
-            ret = avcodec_send_packet(avCodecCtx, flush_pkt);
+            /*ret = avcodec_send_packet(avCodecCtx, flush_pkt);
             if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
 //                LOGE("video avcodec_send_packet error %d", ret);
                 continue;
@@ -154,9 +178,10 @@ void FFMpegAudio::render(NativePlayerContext *ctx) {
                     usleep(10000);
                 }
             } else {
-                push(flush_pkt);
-                av_packet_unref(flush_pkt);
-            }
+            }*/
+            push(this,flush_pkt);
+            av_packet_unref(flush_pkt);
+            usleep(10000);
         }
     }
 }
@@ -254,26 +279,11 @@ void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
 
 void FFMpegAudio::createFF(NativePlayerContext *ctx) {
     //ff重采样设置
-    this->ctx = ctx;
+    this->pCtx = ctx;
     swrContext = swr_alloc();
     out_buffer = static_cast<uint8_t *>(av_mallocz(DEFAULT_SAMPLING_RATE * 2));
 }
 
-static int audio_queue_callback(AVPacket *dst, AVPacket *src) {
-    if (src == NULL) {
-        av_free(dst);
-        return 0;
-    }
-    return av_packet_ref(dst, src);
-}
 
-void FFMpegAudio::pop(AVPacket *pPacket) {
-//    queue->pop(pPacket, audio_queue_callback);
-}
-
-void FFMpegAudio::push(AVPacket *pPacket) {
-    AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
-//    queue->push(pPacket, avPacket, audio_queue_callback);
-}
 
 
