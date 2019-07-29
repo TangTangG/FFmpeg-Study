@@ -268,12 +268,12 @@ static int audio_queue_callback(AVPacket *dst, AVPacket *src) {
 }
 
 void FFMpegAudio::pop(AVPacket *pPacket) {
-    queue->pop(pPacket, audio_queue_callback);
+//    queue->pop(pPacket, audio_queue_callback);
 }
 
 void FFMpegAudio::push(AVPacket *pPacket) {
     AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
-    queue->push(pPacket, avPacket, audio_queue_callback);
+//    queue->push(pPacket, avPacket, audio_queue_callback);
 }
 
 

@@ -13,7 +13,7 @@ extern "C++" {
 #include<vector>
 #include <pthread.h>
 
-template <class T>
+template<class T>
 class FFLockedQueue {
 
 public:
@@ -23,12 +23,21 @@ public:
     int state;
 
     void init();
-    T* pop(T *dst, int (*callback)(T *dst, T *src));
-    void push(T *src,T *dst, int (*callback)(T *dst, T *src));
+
+    T *pop();
+
+    T *releaseHead();
+
+    void push(T *t);
+
     void stop();
+
     void start();
+
     void clear();
+
     void free();
+
     int size();
 };
 
@@ -40,40 +49,39 @@ void FFLockedQueue<T>::init() {
 }
 
 template<class T>
-T* FFLockedQueue<T>::pop(T *dst, int (*callback)(T *, T *)) {
-    T *re = dst;
+T *FFLockedQueue<T>::pop() {
+    if (state == 0) {
+        return NULL;
+    }
+    T *re = NULL;
     pthread_mutex_lock(&queue_mutex);
-    while (state) {
-        if (!queue.empty()) {
-            //返回正数表示克隆失败，0表示成功
-            re = queue.front();
-            break;
-            /*if (callback(dst, queue.front())) {
-                break;
-            }
-            //取成功之后，将旧元素从队列中移除，并释放其内存
-            T *&remove = queue.front();
-            queue.erase(queue.begin());
-            av_free(remove);*/
-        } else {
-            pthread_cond_wait(&queue_cond, &queue_mutex);
-        }
+    if (!queue.empty()) {
+        re = queue.front();
     }
     pthread_mutex_unlock(&queue_mutex);
     return re;
 }
 
 template<class T>
-void FFLockedQueue<T>::push(T *src, T *dst, int (*callback)(T *, T *)) {
-    /*if (callback(dst, src)) {
-        return;
-    }*/
+void FFLockedQueue<T>::push(T *t) {
     pthread_mutex_lock(&queue_mutex);
-    queue.push_back(dst);
+    queue.push_back(t);
     //添加队列成功之后，发出信号
     //此时可能pop正在等待
     pthread_cond_signal(&queue_cond);
     pthread_mutex_unlock(&queue_mutex);
+}
+
+template<class T>
+T *FFLockedQueue<T>::releaseHead() {
+    if (queue.empty()) {
+        return NULL;
+    }
+    pthread_mutex_lock(&queue_mutex);
+    T *re = queue.front();
+    queue.erase(queue.begin());
+    pthread_mutex_unlock(&queue_mutex);
+    return re;
 }
 
 template<class T>
@@ -96,7 +104,6 @@ void FFLockedQueue<T>::free() {
 template<class T>
 void FFLockedQueue<T>::stop() {
     state = QUEUE_STATE_STOP;
-
 }
 
 /**
@@ -112,6 +119,5 @@ int FFLockedQueue<T>::size() {
     return queue.size();
 }
 }
-
 
 #endif //FFMPEGDEMO_FFLOCKQUEUE_H

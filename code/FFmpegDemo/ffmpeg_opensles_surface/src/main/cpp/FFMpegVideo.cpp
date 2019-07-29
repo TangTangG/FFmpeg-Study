@@ -19,19 +19,23 @@ static int video_queue_callback(AVPacket *dst, AVPacket *src) {
     return av_packet_ref(dst, src);
 }
 
-void pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
+bool pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
 
     FFLockedQueue<AVPacket> *queue = pVideo->queue;
-    AVPacket *avPacket = queue->pop(pPacket, video_queue_callback);
-    if (!av_packet_ref(pPacket,avPacket)){
-        queue->queue.erase(queue->queue.begin());
-        av_free(avPacket);
-        LOGD("tang获取一个视频包 %lld",pPacket->pts);
+    AVPacket *avPacket = queue->pop();
+    if (avPacket == NULL) {
+        return false;
     }
+    if (!av_packet_ref(pPacket, avPacket)) {
+        av_packet_unref(avPacket);
+        AVPacket *remove = queue->releaseHead();
+//        av_free(remove);
+    }
+    return true;
 }
 
-void push(FFMpegVideo *pVideo, AVPacket *pPacket, AVPacket *avPacket) {
-    pVideo->queue->push(pPacket, avPacket, video_queue_callback);
+void push(FFMpegVideo *pVideo, AVPacket *pPacket) {
+    pVideo->queue->push(pPacket);
 }
 
 static void start_render_notify(void *pVideo, void *out) {
@@ -43,7 +47,10 @@ static void start_render_notify(void *pVideo, void *out) {
     AVFrame *avFrame = video->avFrame;
     while (video->ctx->play_state > 0) {
         //可能阻塞
-        pop(video,avPacket);
+        if (!pop(video, avPacket)) {
+            usleep(16000);
+            continue;
+        }
         if (avPacket->pts != AV_NOPTS_VALUE) {
             //qts --> double 校正时间
             video->ctx->video_time = av_q2d(video->time_base) * avPacket->pts;
@@ -67,10 +74,7 @@ static void start_render_notify(void *pVideo, void *out) {
         height = video->avCodecCtx->height;
         sws_scale(video->swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
                   height, video->rgb_frame->data, video->rgb_frame->linesize);
-        if (ANativeWindow_lock(video->pNativeWindow, &nativeWindow_buffer, NULL) < 0) {
-            LOGD("FFMPEG Player: can not lock window. ");
-            usleep(16000);
-        } else {
+        if (ANativeWindow_lock(video->pNativeWindow, &nativeWindow_buffer, NULL) >= 0) {
             uint8_t *dst = (uint8_t *) nativeWindow_buffer.bits;
             //像素数据的首地址
             uint8_t *src = video->rgb_frame->data[0];
@@ -84,6 +88,7 @@ static void start_render_notify(void *pVideo, void *out) {
             ANativeWindow_unlockAndPost(video->pNativeWindow);
         }
         av_packet_unref(avPacket);
+        usleep(16000);
     }
     av_free(avPacket);
     av_frame_free(&avFrame);
@@ -100,10 +105,10 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     render_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     av_init_packet(flush_pkt);
-    av_init_packet(render_pkt);
+//    av_init_packet(render_pkt);
 }
 
-jlong FFMpegVideo::decode(NativePlayerContext *ctx,const char *url) {
+jlong FFMpegVideo::decode(NativePlayerContext *ctx, const char *url) {
     AVFormatContext *formatCtx = ctx->formatCtx;
 
     //查找视频流对应解码器
@@ -149,11 +154,11 @@ jlong FFMpegVideo::decode(NativePlayerContext *ctx,const char *url) {
         LOGD("---------- dumping video stream info end ----------");
     }
     avcodec_parameters_to_context(avCodecCtx, codecpar);
-    ff_threadpool_add(ctx->threadPoolCtx, start_render_notify, this,NULL);
+    ff_threadpool_add(ctx->threadPoolCtx, start_render_notify, this, NULL);
     return formatCtx->duration / AV_TIME_BASE;
 }
 
-void FFMpegVideo::render(NativePlayerContext *ctx,jlong audio_time) {
+void FFMpegVideo::render(NativePlayerContext *ctx, jlong audio_time) {
     if (pNativeWindow == 0) {
         pNativeWindow = static_cast<ANativeWindow *>(ctx->display);
     }
@@ -208,16 +213,14 @@ void FFMpegVideo::render(NativePlayerContext *ctx,jlong audio_time) {
                     usleep(10000);
                 }
             } else {
-                LOGD("tang push 视频包 111111111111");
-                AVPacket *avPacket = (AVPacket *)(av_malloc(sizeof(AVPacket)));
-                LOGD("tang push 视频包 222222222222");
-                if (!av_packet_ref(avPacket,flush_pkt)){
-                    LOGD("tang push 视频包 3333333333333");
-                    push(this, flush_pkt, avPacket);
+                AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
+                if (!av_packet_ref(avPacket, flush_pkt)) {
+                    push(this, avPacket);
                 }
+                av_packet_unref(flush_pkt);
+                usleep(16000);
             }
         }
-        av_packet_unref(flush_pkt);
     }
 }
 
