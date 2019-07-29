@@ -10,15 +10,6 @@ char errorBuf[] = {0};
 int errorState;
 //error define ----end
 
-
-static int video_queue_callback(AVPacket *dst, AVPacket *src) {
-    if (src == NULL) {
-        av_free(dst);
-        return 0;
-    }
-    return av_packet_ref(dst, src);
-}
-
 bool pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
 
     FFLockedQueue<AVPacket> *queue = pVideo->queue;
@@ -29,7 +20,7 @@ bool pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
     if (!av_packet_ref(pPacket, avPacket)) {
         av_packet_unref(avPacket);
         AVPacket *remove = queue->releaseHead();
-//        av_free(remove);
+        av_free(remove);
     }
     return true;
 }
@@ -40,7 +31,7 @@ void push(FFMpegVideo *pVideo, AVPacket *pPacket) {
 
 static void start_render_notify(void *pVideo, void *out) {
     FFMpegVideo *video = static_cast<FFMpegVideo *>(pVideo);
-    AVPacket *avPacket = video->render_pkt;
+    AVPacket *avPacket = (AVPacket *) av_malloc(sizeof(AVPacket));
     int result;
     int height;
     ANativeWindow_Buffer nativeWindow_buffer;
@@ -60,8 +51,9 @@ static void start_render_notify(void *pVideo, void *out) {
         if (result != 0) {
             if (result != AVERROR(EAGAIN) && result != AVERROR_EOF) {
                 LOGE("audio avcodec_send_packet error %d", result);
+                av_packet_unref(avPacket);
+                continue;
             }
-            continue;
         }
 
         result = avcodec_receive_frame(video->avCodecCtx, avFrame);
@@ -71,6 +63,16 @@ static void start_render_notify(void *pVideo, void *out) {
             }
             continue;
         }
+        /*if (result == AVERROR_EOF) {
+            //读取完毕 但是不一定播放完毕
+            while (ctx->play_state > 0) {
+                if (ctx->audio_down && ctx->video_down) {
+                    break;
+                }
+                // LOGE("等待播放完成");
+                usleep(10000);
+            }
+        }*/
         height = video->avCodecCtx->height;
         sws_scale(video->swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
                   height, video->rgb_frame->data, video->rgb_frame->linesize);
@@ -105,7 +107,7 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     render_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
     av_init_packet(flush_pkt);
-//    av_init_packet(render_pkt);
+    av_init_packet(render_pkt);
 }
 
 jlong FFMpegVideo::decode(NativePlayerContext *ctx, const char *url) {
@@ -194,32 +196,17 @@ void FFMpegVideo::render(NativePlayerContext *ctx, jlong audio_time) {
         return;
     }
 
-    int ret;
     //开始取帧 渲染流程
     while (av_read_frame(ctx->formatCtx, flush_pkt) >= 0) {
         if (flush_pkt->stream_index == video_stream_index) {
             //解码
-            ret = avcodec_send_packet(avCodecCtx, flush_pkt);
-            if (ret < 0 && ret != AVERROR(EAGAIN) && ret != AVERROR_EOF) {
-                LOGE("video avcodec_send_packet error %d", ret);
-                continue;
-            } else if (ret == AVERROR_EOF) {
-                //读取完毕 但是不一定播放完毕
-                while (ctx->play_state > 0) {
-                    if (ctx->audio_down && ctx->video_down) {
-                        break;
-                    }
-                    // LOGE("等待播放完成");
-                    usleep(10000);
-                }
-            } else {
-                AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
-                if (!av_packet_ref(avPacket, flush_pkt)) {
-                    push(this, avPacket);
-                }
-                av_packet_unref(flush_pkt);
-                usleep(16000);
+            AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
+            if (!av_packet_ref(avPacket, flush_pkt)) {
+                push(this, avPacket);
             }
+            LOGE("添加一个包裹");
+            av_packet_unref(flush_pkt);
+            usleep(9999);
         }
     }
 }
