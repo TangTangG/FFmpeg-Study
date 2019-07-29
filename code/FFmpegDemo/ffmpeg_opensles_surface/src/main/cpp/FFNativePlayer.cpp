@@ -12,7 +12,7 @@ static bool ff_inited = false;
 FFMpegVideo *video;
 FFMpegAudio *audio;
 
-NativePlayerContext *playerCtx;
+NativePlayerContext playerCtx;
 
 void FFNativePlayer::ff_register() {
     //we can omit this function call in ffmpeg 4.0 and later.
@@ -47,14 +47,14 @@ void FFNativePlayer::ff_prepare() {
     video = new FFMpegVideo();
     audio = new FFMpegAudio();
 
-    playerCtx = new NativePlayerContext();
-    playerCtx->formatCtx = avformat_alloc_context();
-    playerCtx->debug = true;
-    playerCtx->play_state = PLAYER_STATE_PLAY;
+    playerCtx = NativePlayerContext();
+    playerCtx.formatCtx = avformat_alloc_context();
+    playerCtx.debug = true;
+    playerCtx.play_state = PLAYER_STATE_PLAY;
 
     //分配线程池
-    playerCtx->threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE, FF_THREAD_POOL_QUEUE, 0);
-    video->create(playerCtx);
+    playerCtx.threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE, FF_THREAD_POOL_QUEUE, 0);
+    video->create(&playerCtx);
 //    audio->create(playerCtx);
 }
 
@@ -64,7 +64,7 @@ void FFNativePlayer::ff_prepare() {
 jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
     char errorBuf[] = {0};
     int errorState;
-    AVFormatContext *formatCtx = playerCtx->formatCtx;
+    AVFormatContext *formatCtx = playerCtx.formatCtx;
     errorState = avformat_open_input(&formatCtx, url, NULL, NULL);
     if (errorState < 0) {
         av_strerror(errorState, errorBuf, 1024);
@@ -78,18 +78,18 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
         ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
         return 0L;
     }
-    jlong duration = video->decode(playerCtx, url);
+    jlong duration = video->decode( url);
 //    audio->decode(playerCtx,url);
     return duration;
 }
 
 void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
 
-    playerCtx->display = ANativeWindow_fromSurface(pEnv, surface);
+    playerCtx.display = ANativeWindow_fromSurface(pEnv, surface);
 }
 
 static void ff_do_video_render(void *playerCtx, void *out) {
-    video->render(static_cast<NativePlayerContext *>(playerCtx), 0);
+    video->render( 0);
 }
 
 static void ff_do_audio_render(void *playerCtx, void *out) {
@@ -102,8 +102,8 @@ void FFNativePlayer::ff_start() {
     }
 //    video->render((playerCtx), 0);
 
-    ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_video_render, playerCtx, NULL);
-    ff_threadpool_add(playerCtx->threadPoolCtx, ff_do_audio_render, playerCtx, NULL);
+    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_video_render, &playerCtx, NULL);
+    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_audio_render, &playerCtx, NULL);
 }
 
 void FFNativePlayer::ff_destroy() {
@@ -114,8 +114,8 @@ void FFNativePlayer::ff_destroy() {
     video = NULL;
     delete audio;
     audio = NULL;
-    delete playerCtx;
-    playerCtx = NULL;
+//    delete playerCtx;
+//    playerCtx = NULL;
 
 }
 
@@ -159,11 +159,8 @@ bool FFNativePlayer::playerCheck() {
     if (!ff_inited) {
         return false;
     }
-    if (playerCtx == 0) {
-        ff_notify_msg(1, "initial player first.");
-        return false;
-    }
-    if (playerCtx->display == 0) {
+
+    if (playerCtx.display == 0) {
         ff_notify_msg(1, "attach view.");
         return false;
     }

@@ -23,7 +23,7 @@ public:
     AVRational time_base;
 
     FFLockedQueue<AVPacket> *queue;
-    NativePlayerContext *ctx;
+    NativePlayerContext *pCtx;
     //video decoder
     AVCodec *avCodec;
 
@@ -40,8 +40,8 @@ public:
     AVFrame *rgb_frame;
 
     void create(NativePlayerContext *ctx);
-    jlong decode(NativePlayerContext *ctx, const char *string);
-    void render(NativePlayerContext *ctx,jlong audio_time);
+    jlong decode( const char *string);
+    void render(jlong audio_time);
     void release();
     void reset();
     void destroy();

@@ -15,4 +15,6 @@ public interface SimplePlayerIface {
 
     boolean destroy();
 
+    void test();
+
 }

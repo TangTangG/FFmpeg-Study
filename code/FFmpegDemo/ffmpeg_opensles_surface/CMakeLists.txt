@@ -27,6 +27,8 @@ add_library( # Sets the name of the library.
         src/main/cpp/FFMpegVideo.cpp
         src/main/cpp/FFMpegAudio.cpp
         src/main/cpp/FFNativePlayer.cpp
+        src/main/cpp/test/Test.cpp
+        src/main/cpp/test/Reference.cpp
         )
 
 # Searches for a specified prebuilt library and stores the path as a

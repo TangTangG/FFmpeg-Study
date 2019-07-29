@@ -36,7 +36,7 @@ static void start_render_notify(void *pVideo, void *out) {
     int height;
     ANativeWindow_Buffer nativeWindow_buffer;
     AVFrame *avFrame = video->avFrame;
-    while (video->ctx->play_state > 0) {
+    while (video->pCtx->play_state > 0) {
         //可能阻塞
         if (!pop(video, avPacket)) {
             usleep(16000);
@@ -44,7 +44,7 @@ static void start_render_notify(void *pVideo, void *out) {
         }
         if (avPacket->pts != AV_NOPTS_VALUE) {
             //qts --> double 校正时间
-            video->ctx->video_time = av_q2d(video->time_base) * avPacket->pts;
+            video->pCtx->video_time = av_q2d(video->time_base) * avPacket->pts;
         }
         //解码
         result = avcodec_send_packet(video->avCodecCtx, avPacket);
@@ -101,7 +101,7 @@ static void start_render_notify(void *pVideo, void *out) {
 void FFMpegVideo::create(NativePlayerContext *ctx) {
     avFrame = av_frame_alloc();
     rgb_frame = av_frame_alloc();
-    this->ctx = ctx;
+    pCtx = ctx;
     queue = new FFLockedQueue<AVPacket>();
     queue->init();
     flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
@@ -110,8 +110,8 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     av_init_packet(render_pkt);
 }
 
-jlong FFMpegVideo::decode(NativePlayerContext *ctx, const char *url) {
-    AVFormatContext *formatCtx = ctx->formatCtx;
+jlong FFMpegVideo::decode( const char *url) {
+    AVFormatContext *formatCtx = pCtx->formatCtx;
 
     //查找视频流对应解码器
     video_stream_index = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
@@ -126,9 +126,9 @@ jlong FFMpegVideo::decode(NativePlayerContext *ctx, const char *url) {
     AVCodecParameters *codecpar = formatCtx->streams[video_stream_index]->codecpar;
     avCodec = avcodec_find_decoder(codecpar->codec_id);
     avCodecCtx = avcodec_alloc_context3(avCodec);
-    time_base = ctx->formatCtx->streams[video_stream_index]->time_base;
+    time_base = pCtx->formatCtx->streams[video_stream_index]->time_base;
 
-    if (ctx->debug) {
+    if (pCtx->debug) {
         LOGD("---------- dumping video stream info begin ----------");
 
         LOGD("input format: %s", formatCtx->iformat->name);
@@ -156,13 +156,13 @@ jlong FFMpegVideo::decode(NativePlayerContext *ctx, const char *url) {
         LOGD("---------- dumping video stream info end ----------");
     }
     avcodec_parameters_to_context(avCodecCtx, codecpar);
-    ff_threadpool_add(ctx->threadPoolCtx, start_render_notify, this, NULL);
+    ff_threadpool_add(pCtx->threadPoolCtx, start_render_notify, this, NULL);
     return formatCtx->duration / AV_TIME_BASE;
 }
 
-void FFMpegVideo::render(NativePlayerContext *ctx, jlong audio_time) {
+void FFMpegVideo::render( jlong audio_time) {
     if (pNativeWindow == 0) {
-        pNativeWindow = static_cast<ANativeWindow *>(ctx->display);
+        pNativeWindow = static_cast<ANativeWindow *>(pCtx->display);
     }
     if (pNativeWindow == 0) {
         LOGE("FFMPEG Player Error: ANativeWindow get failed");
@@ -197,7 +197,7 @@ void FFMpegVideo::render(NativePlayerContext *ctx, jlong audio_time) {
     }
 
     //开始取帧 渲染流程
-    while (av_read_frame(ctx->formatCtx, flush_pkt) >= 0) {
+    while (av_read_frame(pCtx->formatCtx, flush_pkt) >= 0) {
         if (flush_pkt->stream_index == video_stream_index) {
             //解码
             AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
@@ -217,7 +217,7 @@ void FFMpegVideo::release() {
     av_frame_free(&avFrame);
     av_frame_free(&rgb_frame);
     avcodec_close(avCodecCtx);
-    avformat_close_input(&ctx->formatCtx);
+    avformat_close_input(&(pCtx->formatCtx));
 }
 
 void FFMpegVideo::reset() {

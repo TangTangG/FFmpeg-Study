@@ -14,6 +14,11 @@ public abstract class BasePlayer implements SimplePlayerIface {
         return false;
     }
 
+    @Override
+    public void test() {
+        doClangTest();
+    }
+
     static {
         System.loadLibrary("avutil-56");
         System.loadLibrary("avcodec-58");
@@ -26,6 +31,8 @@ public abstract class BasePlayer implements SimplePlayerIface {
         System.loadLibrary("native-lib");
     }
 
+
+    protected native void doClangTest();
 
     protected native void doFFInit();
 

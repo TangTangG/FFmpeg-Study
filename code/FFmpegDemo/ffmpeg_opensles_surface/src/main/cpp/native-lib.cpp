@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <android/log.h>
+#include "test/Test.h"
 
 #define LOGE(FORMAT, ...) __android_log_print(ANDROID_LOG_ERROR, "player", FORMAT, ##__VA_ARGS__);
 
@@ -19,6 +20,7 @@ extern "C" {
 #include "FFNativePlayer.h"
 }
 
+Test *test = 0;
 FFNativePlayer *player = 0;
 
 extern "C"
@@ -267,4 +269,13 @@ Java_com_gu_player_BasePlayer_getFFPos(JNIEnv *env, jobject instance) {
 
     jlong  duration = player->ff_get_current_pos(env);
     return 0;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_gu_player_BasePlayer_doClangTest(JNIEnv *env, jobject instance) {
+
+    test = new Test();
+    test->run_test_case();
+
 }
