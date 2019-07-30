@@ -50,7 +50,7 @@ static void start_render_notify(void *pVideo, void *out) {
         result = avcodec_send_packet(video->avCodecCtx, avPacket);
         if (result != 0) {
             if (result != AVERROR(EAGAIN) && result != AVERROR_EOF) {
-                LOGE("audio avcodec_send_packet error %d", result);
+                LOGE("video avcodec_send_packet error %d", result);
                 av_packet_unref(avPacket);
                 continue;
             }
@@ -59,18 +59,20 @@ static void start_render_notify(void *pVideo, void *out) {
         result = avcodec_receive_frame(video->avCodecCtx, avFrame);
         if (result != 0) {
             if (result != AVERROR_EOF) {
-                LOGE("audio avcodec_receive_frame error %d", result);
+                LOGE("video avcodec_receive_frame error %d", result);
             }
             continue;
         }
         if (result == AVERROR_EOF) {
-            /* //读取完毕 但是不一定播放完毕
-             while (video->pCtx->play_state > 0) {
-                 if (video->pCtx->audio_down && video->pCtx->video_down) {
-                     break;
-                 }
-                 usleep(10000);
-             }*/
+            //读取完毕 但是不一定播放完毕
+//             while (video->pCtx->play_state > 0) {
+//                 if (video->pCtx->audio_down && video->pCtx->video_down) {
+//                     break;
+//                 }
+//                 usleep(10000);
+//             }
+//            video->pCtx->audio_down = true;
+//            break;
         }
         height = video->avCodecCtx->height;
         sws_scale(video->swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,

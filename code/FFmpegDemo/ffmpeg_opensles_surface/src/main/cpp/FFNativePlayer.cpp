@@ -110,7 +110,7 @@ static void ff_do_render(void *playerCtx, void *out) {
             audio->push(audio, flush_pkt);
             av_packet_unref(flush_pkt);
         }
-        usleep(9999);
+        usleep(3333);
     }
 }
 
@@ -118,9 +118,7 @@ void FFNativePlayer::ff_start() {
     if (!playerCheck()) {
         return;
     }
-
     ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_render, &playerCtx, NULL);
-//    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_audio_render, &playerCtx, NULL);
 }
 
 void FFNativePlayer::ff_destroy() {

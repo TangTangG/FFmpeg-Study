@@ -3,6 +3,7 @@
 //
 
 #include <unistd.h>
+#include "util/FFThreadPool.h"
 #include "FFMpegAudio.h"
 
 #define DEFAULT_SAMPLING_RATE 44100
@@ -29,12 +30,12 @@ int decode2PCM(FFMpegAudio *audio);
 bool FFMpegAudio::invalidResult() {
     bool b = SL_RESULT_SUCCESS != result;
     if (!b) {
-        LOGE("");
+        LOGD("TANG invalidResult %d", result);
     }
     return b;
 }
 
-bool pop(FFMpegAudio *audio ,AVPacket *pPacket) {
+bool pop(FFMpegAudio *audio, AVPacket *pPacket) {
     AVPacket *avPacket = audio->queue->pop();
     if (avPacket == NULL) {
         return false;
@@ -47,16 +48,16 @@ bool pop(FFMpegAudio *audio ,AVPacket *pPacket) {
     return true;
 }
 
-void FFMpegAudio::push(FFMpegAudio *audio ,AVPacket *pPacket) {
+void FFMpegAudio::push(FFMpegAudio *audio, AVPacket *pPacket) {
     AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
     if (!av_packet_ref(avPacket, pPacket)) {
-        audio->queue->push( avPacket);
+        audio->queue->push(avPacket);
     }
-
 }
 
 //音频缓存回调函数
 void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
+    LOGD("TANG 回调函数------");
     //得到pcm数据
     FFMpegAudio *audio = (FFMpegAudio *) context;
     int data_size = decode2PCM(audio);
@@ -71,6 +72,17 @@ void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
     }
 }
 
+static void queueObserver(void *in, void *out) {
+    FFMpegAudio *audio = (FFMpegAudio *) in;
+    while (audio->pCtx->play_state > 0) {
+        if (audio->queue->size() != 0) {
+            playerBQCallback(audio->playerBufferQueue, audio);
+            break;
+        }
+        usleep(16000);
+    }
+}
+
 int decode2PCM(FFMpegAudio *audio) {
     AVPacket *avPacket = static_cast<AVPacket *>(av_mallocz(sizeof(AVPacket)));
     AVFrame *avFrame = av_frame_alloc();
@@ -79,6 +91,7 @@ int decode2PCM(FFMpegAudio *audio) {
     while (audio->pCtx->play_state > 0) {
         data_size = 0;
         if (!pop(audio, avPacket)) {
+            LOGD("TANG 队列大小 %d",audio->queue->size());
             usleep(16000);
             break;
         }
@@ -158,6 +171,10 @@ jlong FFMpegAudio::decode(const char *url) {
 }
 
 void FFMpegAudio::renderInit() {
+    int result = avcodec_open2(avCodecCtx, avCodec, NULL);
+    if (result < 0) {
+        LOGE("FFMPEG Player Error: Can not open audio file");
+    }
     /*//解码stream获取avpacket
     int ret;
     //开始取帧 渲染流程
@@ -218,7 +235,10 @@ void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
     if (invalidResult()) {
         return;
     }
-    result = (*engineObj)->CreateOutputMix(engineObj, &outputMixIface, 0, NULL, NULL);
+    //创建混音器
+    const SLInterfaceID mids[1] = {SL_IID_ENVIRONMENTALREVERB};
+    const SLboolean mreq[1] = {SL_BOOLEAN_FALSE};
+    result = (*engineObj)->CreateOutputMix(engineObj, &outputMixIface, 1, mids, mreq);
     if (invalidResult()) {
         return;
     }
@@ -239,10 +259,14 @@ void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
     SLDataLocator_AndroidBufferQueue androidBufferQueue = {SL_DATALOCATOR_ANDROIDSIMPLEBUFFERQUEUE,
                                                            2};
     //包含音频的采样率等
-    SLDataFormat_PCM pcm = {SL_DATAFORMAT_PCM, 2, SL_SAMPLINGRATE_44_1,
+    SLDataFormat_PCM pcm = {SL_DATAFORMAT_PCM, //播放pcm格式的数据
+                            2,//2个声道（立体声）
+                            SL_SAMPLINGRATE_44_1,//44100hz的频率
+                            SL_PCMSAMPLEFORMAT_FIXED_16,//位数
                             SL_PCMSAMPLEFORMAT_FIXED_16,
-                            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,
-                            SL_BYTEORDER_LITTLEENDIAN};
+                            SL_SPEAKER_FRONT_LEFT | SL_SPEAKER_FRONT_RIGHT,//立体声（前左前右）
+                            SL_BYTEORDER_LITTLEENDIAN//结束标志
+    };
     //新建数据源，将上述配置信息放到这个数据源中
     SLDataSource slDataSource = {&androidBufferQueue, &pcm};
     //导入前面的设置到混音器
@@ -274,9 +298,8 @@ void FFMpegAudio::createSlEs(NativePlayerContext *ctx) {
     pAudioPlayerIface->GetInterface(audioPlayerIface, SL_IID_VOLUME, &playerVolume);
     //获取播放状态接口
     (*playerObj)->SetPlayState(playerObj, SL_PLAYSTATE_PLAYING);
-    //启用回调函数
-//    playerBQCallback(playerBufferQueue, this);
-    (*playerBufferQueue)->Enqueue(playerBufferQueue, this, 1);
+    //监听队列是否可用，可用调用playerBQCallback 放入第一个音频数据
+    ff_threadpool_add(pCtx->threadPoolCtx, queueObserver, this, NULL);
 }
 
 void FFMpegAudio::createFF(NativePlayerContext *ctx) {
