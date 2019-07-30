@@ -105,10 +105,6 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     pCtx = ctx;
     queue = new FFLockedQueue<AVPacket>();
     queue->init();
-    flush_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
-    render_pkt = (AVPacket *) av_malloc(sizeof(AVPacket));
-    av_init_packet(flush_pkt);
-    av_init_packet(render_pkt);
 }
 
 jlong FFMpegVideo::decode(const char *url) {

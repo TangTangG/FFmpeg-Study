@@ -38,16 +38,16 @@ public:
     AVRational time_base;
 
     /**
-* SLObjectItf ---> 创建其他SL对象的接口
-*/
-//引擎对象接口
+    * SLObjectItf ---> 创建其他SL对象的接口
+    */
+    //引擎对象接口
     SLObjectItf engineIface;
-//混音器对象接口
+    //混音器对象接口
     SLObjectItf outputMixIface;
-//音频播放器对象接口
+    //音频播放器对象接口
     SLObjectItf audioPlayerIface;
 
-//-----------分割线
+    //-----------分割线
 
     SLEngineItf engineObj;
 

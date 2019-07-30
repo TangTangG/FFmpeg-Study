@@ -30,7 +30,7 @@ int decode2PCM(FFMpegAudio *audio);
 bool FFMpegAudio::invalidResult() {
     bool b = SL_RESULT_SUCCESS != result;
     if (!b) {
-        LOGD("TANG invalidResult %d", result);
+        LOGD("TANG audio invalidResult %d", result);
     }
     return b;
 }
