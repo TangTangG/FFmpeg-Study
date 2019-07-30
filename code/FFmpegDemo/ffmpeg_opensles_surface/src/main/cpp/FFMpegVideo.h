@@ -41,11 +41,11 @@ public:
 
     void create(NativePlayerContext *ctx);
     jlong decode( const char *string);
-    void render(jlong audio_time);
+    bool renderInit();
     void release();
     void reset();
     void destroy();
-
+    void push(AVPacket *pPacket);
 };
 
 

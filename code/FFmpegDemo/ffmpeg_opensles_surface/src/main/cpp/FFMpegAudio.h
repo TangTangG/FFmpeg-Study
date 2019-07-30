@@ -70,13 +70,15 @@ public:
 
     jlong decode(const char *url);
 
-    void render();
+    void renderInit();
 
     void release();
 
     void reset();
 
     void destroy();
+
+    void push(FFMpegAudio *audio, AVPacket *pPacket);
 
 private:
 
@@ -85,6 +87,7 @@ private:
     void createSlEs(NativePlayerContext *pContext);
 
     void createFF(NativePlayerContext *pContext);
+
 };
 
 

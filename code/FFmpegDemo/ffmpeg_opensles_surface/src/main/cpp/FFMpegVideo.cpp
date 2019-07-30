@@ -25,8 +25,8 @@ bool pop(FFMpegVideo *pVideo, AVPacket *pPacket) {
     return true;
 }
 
-void push(FFMpegVideo *pVideo, AVPacket *pPacket) {
-    pVideo->queue->push(pPacket);
+void FFMpegVideo::push(AVPacket *pPacket) {
+    queue->push(pPacket);
 }
 
 static void start_render_notify(void *pVideo, void *out) {
@@ -63,16 +63,15 @@ static void start_render_notify(void *pVideo, void *out) {
             }
             continue;
         }
-        /*if (result == AVERROR_EOF) {
-            //读取完毕 但是不一定播放完毕
-            while (ctx->play_state > 0) {
-                if (ctx->audio_down && ctx->video_down) {
-                    break;
-                }
-                // LOGE("等待播放完成");
-                usleep(10000);
-            }
-        }*/
+        if (result == AVERROR_EOF) {
+            /* //读取完毕 但是不一定播放完毕
+             while (video->pCtx->play_state > 0) {
+                 if (video->pCtx->audio_down && video->pCtx->video_down) {
+                     break;
+                 }
+                 usleep(10000);
+             }*/
+        }
         height = video->avCodecCtx->height;
         sws_scale(video->swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
                   height, video->rgb_frame->data, video->rgb_frame->linesize);
@@ -110,13 +109,12 @@ void FFMpegVideo::create(NativePlayerContext *ctx) {
     av_init_packet(render_pkt);
 }
 
-jlong FFMpegVideo::decode( const char *url) {
+jlong FFMpegVideo::decode(const char *url) {
     AVFormatContext *formatCtx = pCtx->formatCtx;
 
     //查找视频流对应解码器
     video_stream_index = av_find_best_stream(formatCtx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL,
                                              0);
-
     if (video_stream_index == -1) {
         LOGD("FFMPEG Player : Can not find video stream");
         return 0L;
@@ -160,13 +158,13 @@ jlong FFMpegVideo::decode( const char *url) {
     return formatCtx->duration / AV_TIME_BASE;
 }
 
-void FFMpegVideo::render( jlong audio_time) {
+bool FFMpegVideo::renderInit() {
     if (pNativeWindow == 0) {
         pNativeWindow = static_cast<ANativeWindow *>(pCtx->display);
     }
     if (pNativeWindow == 0) {
         LOGE("FFMPEG Player Error: ANativeWindow get failed");
-        return;
+        return false;
     }
     errorState = avcodec_open2(avCodecCtx, avCodec, NULL);
     if (errorState < 0) {
@@ -193,22 +191,9 @@ void FFMpegVideo::render( jlong audio_time) {
         0) {
         queue->stop();
         LOGE("FFMPEG Player Error: Couldn't set buffers geometry.");
-        return;
+        return false;
     }
-
-    //开始取帧 渲染流程
-    while (av_read_frame(pCtx->formatCtx, flush_pkt) >= 0) {
-        if (flush_pkt->stream_index == video_stream_index) {
-            //解码
-            AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
-            if (!av_packet_ref(avPacket, flush_pkt)) {
-                push(this, avPacket);
-            }
-            LOGE("添加一个包裹");
-            av_packet_unref(flush_pkt);
-            usleep(9999);
-        }
-    }
+    return true;
 }
 
 void FFMpegVideo::release() {

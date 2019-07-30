@@ -11,6 +11,8 @@
 static bool ff_inited = false;
 FFMpegVideo *video;
 FFMpegAudio *audio;
+AVPacket *flush_pkt;
+
 
 NativePlayerContext playerCtx;
 
@@ -55,6 +57,7 @@ void FFNativePlayer::ff_prepare() {
     playerCtx.threadPoolCtx = ff_threadpool_create(FF_THREAD_POOL_CORE, FF_THREAD_POOL_QUEUE, 0);
     video->create(&playerCtx);
     audio->create(&playerCtx);
+    flush_pkt = (AVPacket *) (av_malloc(sizeof(AVPacket)));
 }
 
 /**
@@ -77,7 +80,7 @@ jlong FFNativePlayer::ff_set_data_source(JNIEnv *pEnv, const char *url) {
         ff_notify_msg(errorState, "FFMPEG Player Error: Can not find video file stream info");
         return 0L;
     }
-    jlong duration = video->decode( url);
+    jlong duration = video->decode(url);
     audio->decode(url);
     return duration;
 }
@@ -87,12 +90,28 @@ void FFNativePlayer::ff_attach_window(JNIEnv *pEnv, jobject surface) {
     playerCtx.display = ANativeWindow_fromSurface(pEnv, surface);
 }
 
-static void ff_do_video_render(void *playerCtx, void *out) {
-    video->render( 0);
-}
-
-static void ff_do_audio_render(void *playerCtx, void *out) {
-    audio->render();
+static void ff_do_render(void *playerCtx, void *out) {
+    NativePlayerContext *pCtx = (NativePlayerContext *) (playerCtx);
+    if (!video->renderInit()) {
+        LOGE("Video init failed !!!!!!");
+        return;
+    }
+    audio->renderInit();
+    //开始取帧 渲染流程
+    while (av_read_frame(pCtx->formatCtx, flush_pkt) >= 0) {
+        if (flush_pkt->stream_index == video->video_stream_index) {
+            //解码
+            AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
+            if (!av_packet_ref(avPacket, flush_pkt)) {
+                video->push(avPacket);
+            }
+            av_packet_unref(flush_pkt);
+        } else if (flush_pkt->stream_index == audio->audio_stream_index) {
+            audio->push(audio, flush_pkt);
+            av_packet_unref(flush_pkt);
+        }
+        usleep(9999);
+    }
 }
 
 void FFNativePlayer::ff_start() {
@@ -100,8 +119,8 @@ void FFNativePlayer::ff_start() {
         return;
     }
 
-    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_video_render, &playerCtx, NULL);
-    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_audio_render, &playerCtx, NULL);
+    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_render, &playerCtx, NULL);
+//    ff_threadpool_add(playerCtx.threadPoolCtx, ff_do_audio_render, &playerCtx, NULL);
 }
 
 void FFNativePlayer::ff_destroy() {
