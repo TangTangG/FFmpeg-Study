@@ -76,6 +76,8 @@ static void queueObserver(void *in, void *out) {
     FFMpegAudio *audio = (FFMpegAudio *) in;
     while (audio->pCtx->play_state > 0) {
         if (audio->queue->size() != 0) {
+            //等待10ms才填入数据，避免queue只有一个情况
+            usleep(10000);
             playerBQCallback(audio->playerBufferQueue, audio);
             break;
         }
