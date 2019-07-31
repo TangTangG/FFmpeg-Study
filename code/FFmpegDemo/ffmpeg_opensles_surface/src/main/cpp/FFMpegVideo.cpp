@@ -4,6 +4,9 @@
 #include "util/FFThreadPool.h"
 #include "FFMpegVideo.h"
 
+#define MIN_VIDEO_CLOCK_DIFF_MS 25
+#define MAX_VIDEO_CLOCK_DIFF_MS 1500
+
 
 //error define ----begin
 char errorBuf[] = {0};
@@ -29,6 +32,14 @@ void FFMpegVideo::push(AVPacket *pPacket) {
     queue->push(pPacket);
 }
 
+static double videoTimeRedress(FFMpegVideo *pVideo, int64_t pts) {
+    NativePlayerContext *ctx = pVideo->pCtx;
+    double audio_clock = ctx->audio_clock;
+    ctx->video_clock = av_q2d(pVideo->time_base) * pts;
+//    LOGD()
+    return 0;
+}
+
 static void start_render_notify(void *pVideo, void *out) {
     FFMpegVideo *video = static_cast<FFMpegVideo *>(pVideo);
     AVPacket *avPacket = (AVPacket *) av_malloc(sizeof(AVPacket));
@@ -37,14 +48,13 @@ static void start_render_notify(void *pVideo, void *out) {
     ANativeWindow_Buffer nativeWindow_buffer;
     AVFrame *avFrame = video->avFrame;
     while (video->pCtx->play_state > 0) {
-        //可能阻塞
         if (!pop(video, avPacket)) {
             usleep(16000);
             continue;
         }
         if (avPacket->pts != AV_NOPTS_VALUE) {
             //qts --> double 校正时间
-            video->pCtx->video_time = av_q2d(video->time_base) * avPacket->pts;
+            video->pCtx->video_clock = av_q2d(video->time_base) * avPacket->pts;
         }
         //解码
         result = avcodec_send_packet(video->avCodecCtx, avPacket);
@@ -60,23 +70,26 @@ static void start_render_notify(void *pVideo, void *out) {
         if (result != 0) {
             if (result != AVERROR_EOF) {
                 LOGE("video avcodec_receive_frame error %d", result);
-            }
-            continue;
+                continue;
+            }/* else {
+                LOGD("video down ------ ");
+                video->pCtx->video_down = true;
+                break;
+            }*/
         }
-        if (result == AVERROR_EOF) {
-            //读取完毕 但是不一定播放完毕
-//             while (video->pCtx->play_state > 0) {
-//                 if (video->pCtx->audio_down && video->pCtx->video_down) {
-//                     break;
-//                 }
-//                 usleep(10000);
-//             }
-//            video->pCtx->audio_down = true;
-//            break;
-        }
+
         height = video->avCodecCtx->height;
         sws_scale(video->swsContext, (const uint8_t *const *) avFrame->data, avFrame->linesize, 0,
                   height, video->rgb_frame->data, video->rgb_frame->linesize);
+
+        double diff = videoTimeRedress(video, avFrame->best_effort_timestamp);
+        if (diff < -MIN_VIDEO_CLOCK_DIFF_MS || diff > MAX_VIDEO_CLOCK_DIFF_MS) {
+            //超出两个阈值的都认为是异常帧，直接丢弃
+            continue;
+        } else if (diff > MIN_VIDEO_CLOCK_DIFF_MS && diff <= MAX_VIDEO_CLOCK_DIFF_MS) {
+            usleep((diff - MIN_VIDEO_CLOCK_DIFF_MS) * 1000);
+        }
+
         if (ANativeWindow_lock(video->pNativeWindow, &nativeWindow_buffer, NULL) >= 0) {
             uint8_t *dst = (uint8_t *) nativeWindow_buffer.bits;
             //像素数据的首地址
@@ -91,13 +104,11 @@ static void start_render_notify(void *pVideo, void *out) {
             ANativeWindow_unlockAndPost(video->pNativeWindow);
         }
         av_packet_unref(avPacket);
-        usleep(16000);
     }
     av_free(avPacket);
     av_frame_free(&avFrame);
     video->release();
 }
-
 
 void FFMpegVideo::create(NativePlayerContext *ctx) {
     avFrame = av_frame_alloc();

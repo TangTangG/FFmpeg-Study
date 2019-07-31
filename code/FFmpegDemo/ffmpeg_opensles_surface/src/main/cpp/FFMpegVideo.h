@@ -10,6 +10,7 @@ extern "C" {
 #include "libavformat/avformat.h"
 #include "libswscale/swscale.h"
 #include "libavutil/imgutils.h"
+#include "libavutil/time.h"
 #include <unistd.h>
 #include "Data.h"
 #include "util/FF_Log.h"

@@ -16,6 +16,8 @@ AVPacket *flush_pkt;
 
 NativePlayerContext playerCtx;
 
+static bool playerStateCheck(NativePlayerContext *pContext);
+
 void FFNativePlayer::ff_register() {
     //we can omit this function call in ffmpeg 4.0 and later.
     //av_register_all();
@@ -99,6 +101,7 @@ static void ff_do_render(void *playerCtx, void *out) {
     audio->renderInit();
     //开始取帧 渲染流程
     while (av_read_frame(pCtx->formatCtx, flush_pkt) >= 0) {
+
         if (flush_pkt->stream_index == video->video_stream_index) {
             //解码
             AVPacket *avPacket = (AVPacket *) (av_malloc(sizeof(AVPacket)));
@@ -110,8 +113,17 @@ static void ff_do_render(void *playerCtx, void *out) {
             audio->push(audio, flush_pkt);
             av_packet_unref(flush_pkt);
         }
+        //播放完成 退出循环体
+       /* if (!playerStateCheck(pCtx)) {
+            break;
+        }*/
         usleep(3333);
     }
+    //may notify message here.
+}
+
+static bool playerStateCheck(NativePlayerContext *pContext) {
+    return pContext->video_down && pContext->audio_down;
 }
 
 void FFNativePlayer::ff_start() {

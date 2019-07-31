@@ -30,8 +30,8 @@ typedef struct NativePlayerContext {
     FFThreadPoolContext *threadPoolCtx;
     jobject *callback;
     bool debug;
-    double video_time;
-    double audio_time;
+    double video_clock;
+    double audio_clock;
     bool video_down;
     bool audio_down;
 }NativePlayerContext;
