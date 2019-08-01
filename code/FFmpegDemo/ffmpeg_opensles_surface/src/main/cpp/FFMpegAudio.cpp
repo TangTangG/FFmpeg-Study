@@ -57,7 +57,7 @@ void FFMpegAudio::push(FFMpegAudio *audio, AVPacket *pPacket) {
 
 //音频缓存回调函数
 void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
-    LOGD("audio buffer queue callback ------");
+//    LOGD("audio buffer queue callback ------");
     //得到pcm数据
     FFMpegAudio *audio = (FFMpegAudio *) context;
     int data_size = decode2PCM(audio);
@@ -68,7 +68,7 @@ void playerBQCallback(SLAndroidSimpleBufferQueueItf bq, void *context) {
         LOGE("current frame time:%f   play_time:%f", time, audio->pCtx->audio_clock);
 
         (*bq)->Enqueue(bq, audio->out_buffer, data_size);
-        LOGE("audio in queue %d ", audio->queue->size());
+//        LOGE("audio in queue %d ", audio->queue->size());
     }
 }
 

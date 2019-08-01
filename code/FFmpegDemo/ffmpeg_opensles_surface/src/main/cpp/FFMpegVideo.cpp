@@ -35,8 +35,28 @@ void FFMpegVideo::push(AVPacket *pPacket) {
 static double videoTimeRedress(FFMpegVideo *pVideo, int64_t pts) {
     NativePlayerContext *ctx = pVideo->pCtx;
     double audio_clock = ctx->audio_clock;
-    ctx->video_clock = av_q2d(pVideo->time_base) * pts;
-//    LOGD()
+    double play  = av_q2d(pVideo->time_base) * pts;
+
+    if (play != 0)
+        ctx->video_clock=play;
+    else //pst为0 则先把pts设为上一帧时间
+        play = ctx->video_clock;
+    //可能有pts为0 则主动增加clock
+    //frame->repeat_pict = 当解码时，这张图片需要要延迟多少
+    //需要求出扩展延时：
+    //extra_delay = repeat_pict / (2*fps) 显示这样图片需要延迟这么久来显示
+    double repeat_pict = pVideo->avFrame->repeat_pict;
+    //使用AvCodecContext的而不是stream的
+    double frame_delay = av_q2d(pVideo->time_base);
+    //如果time_base是1,25 把1s分成25份，则fps为25
+    //fps = 1/(1/25)
+    double fps = 1 / frame_delay;
+    //pts 加上 这个延迟 是显示时间
+    double extra_delay = repeat_pict / (2 * fps);
+    double delay = extra_delay + frame_delay;
+//    LOGI("extra_delay:%f",extra_delay);
+    ctx->video_clock += delay;
+    LOGD("video_clock info: %f",ctx->video_clock);
     return 0;
 }
 
@@ -84,6 +104,7 @@ static void start_render_notify(void *pVideo, void *out) {
 
         double diff = videoTimeRedress(video, avFrame->best_effort_timestamp);
         if (diff < -MIN_VIDEO_CLOCK_DIFF_MS || diff > MAX_VIDEO_CLOCK_DIFF_MS) {
+            av_packet_unref(avPacket);
             //超出两个阈值的都认为是异常帧，直接丢弃
             continue;
         } else if (diff > MIN_VIDEO_CLOCK_DIFF_MS && diff <= MAX_VIDEO_CLOCK_DIFF_MS) {
