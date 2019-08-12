@@ -21,4 +21,8 @@ public final class SimpleThreadPoolExecutor {
         }
         return pool;
     }
+
+    public static void stop() {
+        pool.shutdownNow();
+    }
 }
