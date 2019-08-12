@@ -7,8 +7,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 
+import com.gu.android_mediacodec_acc.AndroidMediaCodecPlayer;
 import com.gu.player.SimplePlayerIface;
-import com.player.ffmpeg_opensles_surface.FFSurfaceOpenslESPlayer;
 
 import java.io.File;
 
@@ -43,8 +43,9 @@ public class MainActivity extends AppCompatActivity {
 
 //        SimplePlayerIface ffPlayer = new FFDecodePlayer();
         if (ffPlayer == null) {
-            ffPlayer = new FFSurfaceOpenslESPlayer(MainActivity.this);
-            if (!test){
+            ffPlayer = new AndroidMediaCodecPlayer(MainActivity.this);
+//            ffPlayer = new FFSurfaceOpenslESPlayer(MainActivity.this);
+            if (!test) {
                 View view = ffPlayer.init(null);
                 ViewGroup container = findViewById(R.id.surface_container);
                 int height = container.getMeasuredHeight();
@@ -58,7 +59,6 @@ public class MainActivity extends AppCompatActivity {
                 view.setLayoutParams(params);
                 container.addView(view);
             }
-
         }
         if (test) {
             ffPlayer.test();

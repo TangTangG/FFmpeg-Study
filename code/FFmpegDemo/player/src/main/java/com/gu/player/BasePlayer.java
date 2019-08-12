@@ -19,16 +19,24 @@ public abstract class BasePlayer implements SimplePlayerIface {
         doClangTest();
     }
 
+    private static final boolean LOAD = getLoad();
+
+    protected static boolean getLoad() {
+        return true;
+    }
+
     static {
-        System.loadLibrary("avutil-56");
-        System.loadLibrary("avcodec-58");
-        System.loadLibrary("avformat-58");
-        System.loadLibrary("avdevice-58");
-        System.loadLibrary("swresample-3");
-        System.loadLibrary("swscale-5");
-        System.loadLibrary("postproc-55");
-        System.loadLibrary("avfilter-7");
-        System.loadLibrary("native-lib");
+        /*if (LOAD) {
+            System.loadLibrary("avutil-56");
+            System.loadLibrary("avcodec-58");
+            System.loadLibrary("avformat-58");
+            System.loadLibrary("avdevice-58");
+            System.loadLibrary("swresample-3");
+            System.loadLibrary("swscale-5");
+            System.loadLibrary("postproc-55");
+            System.loadLibrary("avfilter-7");
+            System.loadLibrary("native-lib");
+        }*/
     }
 
 
@@ -58,6 +66,7 @@ public abstract class BasePlayer implements SimplePlayerIface {
 
     /**
      * start and play
+     *
      * @return total duration
      */
     protected native long doFFPlay(String playUrl);

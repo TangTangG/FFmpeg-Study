@@ -2,6 +2,7 @@ package com.gu.android_mediacodec_acc;
 
 import android.annotation.TargetApi;
 import android.content.Context;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.PixelFormat;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
@@ -17,6 +18,10 @@ import android.view.View;
 import com.gu.player.BasePlayer;
 import com.gu.player.SimpleThreadPoolExecutor;
 
+import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
@@ -38,7 +43,7 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
     }
 
     @Override
-    public View init(SurfaceView surfaceView) {
+    public View init(final SurfaceView surfaceView) {
         this.surfaceView = new SurfaceView(context);
         this.surfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
             @Override
@@ -89,7 +94,15 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
             return;
         }
         extractor = new MediaExtractor();
-        extractor.setDataSource(playUrl);
+        //local path
+        if (playUrl.startsWith("/")) {
+            FileInputStream stream = new FileInputStream(playUrl);
+//            FileOutputStream file = new FileOutputStream(playUrl);
+            FileDescriptor fd = stream.getFD();
+            extractor.setDataSource(fd);
+        } else {
+            extractor.setDataSource(playUrl);
+        }
         String mimeType = null;
         for (int i = 0; i < extractor.getTrackCount(); i++) {
             MediaFormat format = extractor.getTrackFormat(i);
@@ -135,8 +148,8 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
                     extractor.advance();
                 }
             }
-            int outIndex = mediaCodec.dequeueOutputBuffer(bufferInfo,10);
-            switch (outIndex){
+            int outIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10);
+            switch (outIndex) {
                 case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
                     outputBuffers = mediaCodec.getOutputBuffers();
                     break;
@@ -152,7 +165,7 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
                     mediaCodec.releaseOutputBuffer(outIndex, true);
                     break;
             }
-            if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0){
+            if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
                 Log.i(TAG, "receiveFrame: catch end of the stream.");
                 break;
             }
@@ -173,7 +186,7 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
         if (mediaCodec != null) {
             mediaCodec.stop();
         }
-        if (extractor != null){
+        if (extractor != null) {
             extractor.release();
         }
         return false;
