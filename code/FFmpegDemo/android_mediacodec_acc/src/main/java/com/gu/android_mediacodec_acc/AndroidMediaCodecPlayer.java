@@ -2,7 +2,6 @@ package com.gu.android_mediacodec_acc;
 
 import android.annotation.TargetApi;
 import android.content.Context;
-import android.content.res.AssetFileDescriptor;
 import android.graphics.PixelFormat;
 import android.media.MediaCodec;
 import android.media.MediaExtractor;
@@ -18,13 +17,23 @@ import android.view.View;
 import com.gu.player.BasePlayer;
 import com.gu.player.SimpleThreadPoolExecutor;
 
-import java.io.File;
 import java.io.FileDescriptor;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+/**
+ * MediaExtractor:辅助视频流中提取多轨道媒体数据
+ * MediaSync: 同步音频
+ * MediaMuxer: 音频混合器
+ * MediaCrypto: 解码加密流的辅助类    Crypto(加密)
+ * MediaDrm:DRM加密
+ * Image:图像缓冲区 --->  MediaCodec or a CameraDevice
+ * Surface:展示
+ * AudioTrack:音轨信息
+ *
+ * MediaFormat:设置输出样式，包括大小，缩放，码率等等
+ */
 @TargetApi(Build.VERSION_CODES.LOLLIPOP)
 public class AndroidMediaCodecPlayer extends BasePlayer {
 
@@ -74,15 +83,14 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
     }
 
     private void doPlay() {
-        try {
-            initial();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
         SimpleThreadPoolExecutor.getPool().submit(new Runnable() {
             @Override
             public void run() {
-                receiveFrame();
+                try {
+                    initial();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
         });
     }
@@ -97,7 +105,6 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
         //local path
         if (playUrl.startsWith("/")) {
             FileInputStream stream = new FileInputStream(playUrl);
-//            FileOutputStream file = new FileOutputStream(playUrl);
             FileDescriptor fd = stream.getFD();
             extractor.setDataSource(fd);
         } else {
@@ -128,50 +135,6 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
         }
     }
 
-    private void receiveFrame() {
-        if (mediaCodec == null) {
-            return;
-        }
-        ByteBuffer[] inputBuffers = mediaCodec.getInputBuffers();
-        ByteBuffer[] outputBuffers = mediaCodec.getOutputBuffers();
-        MediaCodec.BufferInfo bufferInfo = new MediaCodec.BufferInfo();
-        while (!Thread.interrupted()) {
-            int inputIndex = mediaCodec.dequeueInputBuffer(0);
-            if (inputIndex >= 0) {
-                ByteBuffer buffer = inputBuffers[inputIndex];
-                int sampleSize = extractor.readSampleData(buffer, 0);
-                if (sampleSize < 0) {
-                    Log.i(TAG, "receiveFrame: mark input buffer stream end.");
-                    mediaCodec.queueInputBuffer(inputIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
-                } else {
-                    mediaCodec.queueInputBuffer(inputIndex, 0, sampleSize, extractor.getSampleTime(), 0);
-                    extractor.advance();
-                }
-            }
-            int outIndex = mediaCodec.dequeueOutputBuffer(bufferInfo, 10);
-            switch (outIndex) {
-                case MediaCodec.INFO_OUTPUT_BUFFERS_CHANGED:
-                    outputBuffers = mediaCodec.getOutputBuffers();
-                    break;
-                case MediaCodec.INFO_OUTPUT_FORMAT_CHANGED:
-                    Log.d(TAG, "New format " + mediaCodec.getOutputFormat());
-                    break;
-                case MediaCodec.INFO_TRY_AGAIN_LATER:
-                    Log.d(TAG, "dequeueOutputBuffer timed out!");
-                    break;
-                default:
-                    ByteBuffer buffer = outputBuffers[outIndex];
-                    Log.v(TAG, "We can't use this buffer but render it due to the API limit, " + buffer);
-                    mediaCodec.releaseOutputBuffer(outIndex, true);
-                    break;
-            }
-            if ((bufferInfo.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
-                Log.i(TAG, "receiveFrame: catch end of the stream.");
-                break;
-            }
-        }
-    }
-
     @Override
     public boolean play(String url) {
         this.playUrl = url;
@@ -179,6 +142,10 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
             doPlay();
         }
         return true;
+    }
+
+    private void complete(){
+        stop();
     }
 
     @Override
@@ -197,11 +164,34 @@ public class AndroidMediaCodecPlayer extends BasePlayer {
         @Override
         public void onInputBufferAvailable(MediaCodec codec, int index) {
             Log.d(TAG, "onInputBufferAvailable: " + index);
+//            bufferIdxList.add(index);
+            ByteBuffer buffer = mediaCodec.getInputBuffer(index);
+            int sampleSize = extractor.readSampleData(buffer, 0);
+            if (sampleSize < 0) {
+                Log.i(TAG, "receiveFrame: mark input buffer stream end.");
+                mediaCodec.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+            } else {
+                mediaCodec.queueInputBuffer(index, 0, sampleSize, extractor.getSampleTime(), 0);
+                extractor.advance();
+            }
         }
 
         @Override
         public void onOutputBufferAvailable(MediaCodec codec, int index, MediaCodec.BufferInfo info) {
             Log.d(TAG, "onOutputBufferAvailable: " + index + " info:" + info.toString());
+            ByteBuffer outputBuffer = codec.getOutputBuffer(index);
+            MediaFormat outputFormat = codec.getOutputFormat(index);
+            if ((info.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
+                outputFormat.setByteBuffer("csd-0", outputBuffer);
+                info.size = 0;
+            }
+
+            mediaCodec.releaseOutputBuffer(index, true);
+            if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                Log.i(TAG, "receiveFrame: catch end of the stream.");
+                //mark end of stream.
+                complete();
+            }
         }
 
         @Override
